@@ -737,7 +737,7 @@ resource "google_logging_metric" "wiki_page_views" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "GAUGE"
+    metric_kind  = "DELTA"
     value_type   = "INT64"
     display_name = "Wiki.js Page Views"
   }
@@ -760,7 +760,7 @@ resource "google_logging_metric" "wiki_user_sessions" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "GAUGE"
+    metric_kind  = "DELTA"
     value_type   = "INT64"
     display_name = "Wiki.js User Logins"
   }
@@ -784,7 +784,7 @@ resource "google_logging_metric" "wiki_errors" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "GAUGE"
+    metric_kind  = "DELTA"
     value_type   = "INT64"
     display_name = "Wiki.js Errors"
   }
@@ -805,7 +805,7 @@ resource "google_logging_metric" "slow_requests" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "GAUGE"
+    metric_kind  = "DELTA"
     value_type   = "INT64"
     display_name = "Slow Requests (>2s)"
   }
@@ -917,7 +917,7 @@ resource "google_monitoring_alert_policy" "high_cpu_usage" {
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MEAN"
+        per_series_aligner   = "ALIGN_DELTA"
         cross_series_reducer = "REDUCE_MEAN"
         group_by_fields      = ["resource.label.service_name"]
       }
