@@ -992,10 +992,6 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               sparkChartView = {
                 sparkChartType = "SPARK_LINE"
               }
-              gaugeView = {
-                lowerBound = 0
-                upperBound = 1000
-              }
             }
           }
         },
@@ -1225,10 +1221,6 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
               sparkChartView = {
                 sparkChartType = "SPARK_LINE"
-              }
-              gaugeView = {
-                lowerBound = 0
-                upperBound = 10
               }
             }
           }
