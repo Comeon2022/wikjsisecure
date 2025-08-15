@@ -342,7 +342,7 @@ resource "google_sql_database_instance" "wiki_postgres" {
     ip_configuration {
       ipv4_enabled    = false  # 🔒 No public IP
       private_network = google_compute_network.wiki_js_vpc.id
-      require_ssl     = true   # 🔐 Force SSL connections
+      ssl_mode        = "ENCRYPTED_ONLY"  # 🔐 Force SSL connections
     }
     
     database_flags {
