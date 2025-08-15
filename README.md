@@ -1,20 +1,18 @@
-# 🔐 Secure Wiki.js on Google Cloud Run
+# 🔐 Secure Wiki.js on Google Cloud Run - IaC Assessment
 
 ![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white) ![Google Cloud](https://img.shields.io/badge/GoogleCloud-%234285F4.svg?style=for-the-badge&logo=google-cloud&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Security](https://img.shields.io/badge/Security-Secret_Manager-red?style=for-the-badge)
 
-Deploy [Wiki.js](https://wiki.js.org/) on Google Cloud Run with **enterprise-grade security** using Google Secret Manager. This repository provides a **one-command deployment** with production-ready security practices.
+A secure Infrastructure as Code (IaC) solution to deploy [Wiki.js](https://wiki.js.org/) on Google Cloud Run with enterprise-grade security using Google Secret Manager and private networking.
 
-## 🛡️ Security Features
+## 📋 Solution Overview
 
-- **🔐 Secret Manager Integration**: Database credentials stored securely, never in plain text
-- **🎲 Random Password Generation**: 32-character passwords with special characters
-- **🌐 Private Networking**: Database accessible only via private VPC (no public IP)
-- **🔒 SSL Required**: All database connections encrypted with SSL
-- **🔑 Least Privilege IAM**: Service accounts with minimal required permissions
-- **📝 No Credential Exposure**: Passwords never appear in logs, Terraform state, or outputs
-- **🔄 Credential Rotation**: Easy password rotation via Secret Manager
-- **📊 Audit Logging**: All secret access logged for compliance
-- **🚫 Network Isolation**: Cloud SQL completely isolated from public internet
+This Terraform solution provides a **production-ready, secure deployment** of Wiki.js with:
+
+- **🔐 Private Database**: Cloud SQL PostgreSQL with private IP only (no public access)
+- **🌐 Secure Networking**: VPC with private service connection and VPC Access Connector
+- **🛡️ Secret Management**: Database credentials stored in Google Secret Manager
+- **🔒 Security Best Practices**: Least privilege IAM, encrypted storage, audit logging
+- **⚡ One-Command Deployment**: Fully automated infrastructure provisioning
 
 ## 🏗️ Architecture
 
@@ -24,18 +22,18 @@ Deploy [Wiki.js](https://wiki.js.org/) on Google Cloud Run with **enterprise-gra
                          ▼
               ┌─────────────────┐
               │   Cloud Run     │
-              │   (Wiki.js)     │ 🔐 Public Access
+              │   (Wiki.js)     │ 🌐 Public Access
               │                 │
               └─────────┬───────┘
                         │
-                        │ 🔒 VPC Connector
+                        │ 🔐 VPC Access Connector
                         ▼
               ┌─────────────────┐
               │  Private VPC    │
               │                 │
               │  ┌───────────┐  │
               │  │Cloud SQL  │  │ 🔐 Private IP Only
-              │  │(PostgreSQL)│  │ 🔒 SSL Required
+              │  │(PostgreSQL)│  │ 🔒 No Public Access
               │  └───────────┘  │
               └─────────────────┘
                         ▲
@@ -46,245 +44,273 @@ Deploy [Wiki.js](https://wiki.js.org/) on Google Cloud Run with **enterprise-gra
               └─────────────────┘
 ```
 
-## ⚡ Quick Start
+## 📦 Prerequisites
 
-### Prerequisites
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and configured
-- [Terraform](https://www.terraform.io/downloads) installed (>= 1.0)
-- A GCP project with billing enabled
-- Authentication: `gcloud auth application-default login`
+Before running this solution, ensure you have the following installed and configured:
 
-### One-Command Secure Deployment
+### Required Tools
+- **[Google Cloud SDK](https://cloud.google.com/sdk/docs/install)** (>= 400.0.0)
+- **[Terraform](https://www.terraform.io/downloads)** (>= 1.0)
+- **[Docker](https://docs.docker.com/get-docker/)** (>= 20.0.0)
+- **Git** for version control
 
+### Google Cloud Setup
+1. **GCP Project**: An active Google Cloud Project with billing enabled
+2. **Authentication**: Configure application default credentials
+   ```bash
+   gcloud auth application-default login
+   ```
+3. **Docker Authentication**: Configure Docker for Artifact Registry
+   ```bash
+   gcloud auth configure-docker
+   ```
+
+### Required Permissions
+Your Google Cloud user/service account needs the following roles:
+- `roles/owner` OR the combination of:
+  - `roles/compute.admin`
+  - `roles/cloudsql.admin`
+  - `roles/run.admin`
+  - `roles/secretmanager.admin`
+  - `roles/artifactregistry.admin`
+  - `roles/serviceusage.serviceUsageAdmin`
+
+## 🚀 Setup Instructions
+
+### Step 1: Clone Repository
 ```bash
-# 1. Clone this repository
-git clone https://github.com/Comeon2022/wikjsisecure.git
-cd wikjsisecure
+git clone <your-repository-url>
+cd <repository-name>
+```
 
-# 2. Initialize Terraform
+### Step 2: Initialize Terraform
+```bash
+terraform init
+```
+
+### Step 3: Review Configuration (Optional)
+```bash
+# Review the planned infrastructure changes
+terraform plan
+```
+
+### Step 4: Deploy Infrastructure
+```bash
+# Deploy the complete solution
+terraform apply
+
+# When prompted, enter your GCP Project ID
+# Example: my-gcp-project-123456
+```
+
+### Step 5: Access Your Wiki
+After successful deployment (approximately 5-10 minutes), access your Wiki.js instance using the URL provided in the output.
+
+## 💻 Command Examples
+
+### Basic Operations
+```bash
+# Initialize Terraform
 terraform init
 
-# 3. Deploy everything securely
-terraform apply
-# Enter your GCP project ID when prompted
+# Plan deployment (review changes)
+terraform plan -var="project_id=YOUR_PROJECT_ID"
+
+# Apply configuration
+terraform apply -var="project_id=YOUR_PROJECT_ID"
+
+# View outputs
+terraform output
+
+# Destroy infrastructure (cleanup)
+terraform destroy
 ```
 
-**That's it!** 🎉 Terraform automatically:
+### Advanced Operations
+```bash
+# Format Terraform files
+terraform fmt
 
-- ✅ Enables all required GCP APIs
-- ✅ Creates secure service accounts with minimal permissions
-- ✅ Generates random database passwords (32 characters)
-- ✅ Stores credentials securely in Secret Manager
-- ✅ Sets up Cloud SQL PostgreSQL database with secure authentication
-- ✅ Builds and pushes Wiki.js container to private Artifact Registry
-- ✅ Deploys Cloud Run service with secret-based configuration
-- ✅ Configures public access for your wiki
+# Validate configuration
+terraform validate
 
-## 🔐 Security Deep Dive
+# Show current state
+terraform show
 
-### Credential Management
-- **🎲 Random Password**: 32-character password with upper, lower, numbers, and special characters
-- **🔐 Secret Storage**: Username and password stored in Google Secret Manager
-- **🚫 Zero Hardcoding**: No credentials visible in code, state, or logs
-- **🔑 Secret Access**: Cloud Run reads credentials directly from Secret Manager
+# Import existing resources (if needed)
+terraform import google_project.my_project YOUR_PROJECT_ID
+```
 
-### Service Account Security
-- **wiki-js-sa**: Cloud Run application identity
-  - `roles/run.developer` - Deploy and manage Cloud Run
-  - `roles/logging.logWriter` - Write application logs
-  - `roles/cloudsql.client` - Connect to database
-  - `roles/secretmanager.secretAccessor` - Read database credentials
-- **wiki-js-build-sa**: Container build identity
-  - `roles/cloudbuild.builds.builder` - Execute builds
-  - `roles/artifactregistry.writer` - Push container images
+### Monitoring and Debugging
+```bash
+# Check Cloud Run service status
+gcloud run services list --region=us-central1
+
+# View Cloud Run logs
+gcloud run services logs read wiki-js --region=us-central1
+
+# Check Cloud SQL instance
+gcloud sql instances list
+
+# View secrets (metadata only)
+gcloud secrets list
+
+# Check VPC Access Connector
+gcloud compute networks vpc-access connectors list --region=us-central1
+```
+
+## 🔧 Configuration Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `project_id` | GCP Project ID | - | ✅ Yes |
+| `region` | GCP Region for resources | `us-central1` | No |
+| `zone` | GCP Zone for resources | `us-central1-a` | No |
+
+### Custom Configuration Example
+```hcl
+# terraform.tfvars
+project_id = "my-production-project"
+region     = "europe-west1"
+zone       = "europe-west1-b"
+```
+
+## 📊 What Gets Created
+
+| Resource Type | Name | Purpose |
+|---------------|------|---------|
+| **VPC Network** | `wiki-js-vpc` | Private networking foundation |
+| **Subnet** | `wiki-js-subnet` | Network segment for resources |
+| **Private Connection** | `wiki-js-private-ip` | Cloud SQL private peering |
+| **VPC Connector** | `wiki-js-connector` | Cloud Run ↔ VPC bridge |
+| **Cloud SQL** | `wiki-postgres-instance` | PostgreSQL database (private) |
+| **Cloud Run** | `wiki-js` | Wiki.js application |
+| **Secret Manager** | `wiki-js-db-*` | Encrypted credentials |
+| **Service Accounts** | `wiki-js-sa`, `wiki-js-build-sa` | Secure identities |
+| **Artifact Registry** | `wiki-js` | Private container repository |
+
+## 🛡️ Security Features
 
 ### Network Security
-- **Cloud SQL**: Configured with IAM authentication enabled
-- **Authorized Networks**: Currently open (0.0.0.0/0) for development
-- **Private Registry**: Container images stored in private Artifact Registry
+- **Private VPC**: Isolated network environment
+- **Private IP Only**: Cloud SQL accessible only via private network
+- **VPC Access Connector**: Secure Cloud Run to database communication
+- **No Public Database Access**: Complete isolation from public internet
 
-## 📋 What Gets Created
+### Credential Security
+- **Secret Manager**: Encrypted credential storage
+- **Random Password Generation**: 32-character secure passwords
+- **Zero Hardcoding**: No credentials in code or state files
+- **Least Privilege IAM**: Minimal required permissions
 
-| Resource | Name | Purpose | Security Feature |
-|----------|------|---------|------------------|
-| **Cloud Run** | `wiki-js` | Wiki.js application | Secret-based env vars |
-| **Cloud SQL** | `wiki-postgres-instance` | PostgreSQL database | IAM auth + secure creds |
-| **Secret Manager** | `wiki-js-db-username` | Database username | Encrypted storage |
-| **Secret Manager** | `wiki-js-db-password` | Database password | Random 32-char password |
-| **Artifact Registry** | `wiki-js` | Container images | Private repository |
-| **Service Accounts** | `wiki-js-sa`, `wiki-js-build-sa` | Application identity | Least privilege |
+### Audit and Monitoring
+- **Cloud Logging**: All operations logged
+- **Secret Access Tracking**: Audit trail for credential access
+- **VPC Flow Logs**: Network traffic monitoring
+- **IAM Audit**: Permission changes tracked
 
-## 💰 Cost Estimation
+## 🔍 Validation and Testing
 
-Approximate monthly costs for light usage:
-
-| Service | Configuration | Est. Monthly Cost |
-|---------|---------------|-------------------|
-| **Cloud Run** | 1M requests, 512MB RAM | ~$2-5 |
-| **Cloud SQL** | db-f1-micro, 10GB SSD | ~$7-10 |
-| **Secret Manager** | 2 secrets, few accesses | ~$0.06 |
-| **Artifact Registry** | <1GB storage | ~$0.10 |
-| **Total** | | **~$10-15/month** |
-
-## 🔧 Management & Monitoring
-
-### Secret Management
+### Syntax Validation
 ```bash
-# View secrets (no values shown)
-gcloud secrets list --project=YOUR_PROJECT_ID
+# Validate Terraform syntax
+terraform validate
 
-# Rotate database password
-gcloud secrets versions add wiki-js-db-password --data-file=new_password.txt
+# Format code
+terraform fmt -check
 
-# View secret metadata
-gcloud secrets describe wiki-js-db-password
+# Security scanning (if tfsec installed)
+tfsec .
 ```
 
-### Database Access
+### Functional Testing
 ```bash
-# Connect to database (credentials from Secret Manager)
+# Test database connectivity
 gcloud sql connect wiki-postgres-instance --user=wikijs
+
+# Test Cloud Run service
+curl -I $(terraform output -raw wiki_js_url)
+
+# Test secret access
+gcloud secrets versions access latest --secret=wiki-js-db-username
 ```
 
-### Monitoring
-- **📊 Cloud Run Metrics**: Auto-scaling, response times, error rates
-- **🗄️ Cloud SQL Insights**: Query performance, connection metrics
-- **🔐 Secret Manager Audit**: Who accessed secrets and when
-- **📝 Cloud Logging**: Application logs and security events
+## 🚨 Troubleshooting
 
-## 🔧 Advanced Configuration
+### Common Issues and Solutions
 
-### Custom Password Requirements
-```hcl
-resource "random_password" "db_password" {
-  length  = 64        # Longer password
-  special = true
-  upper   = true
-  lower   = true
-  numeric = true
-  min_special = 8     # Minimum special characters
-}
+**Issue: "Private service connection failed"**
+```bash
+# Solution: Check Service Networking API
+gcloud services enable servicenetworking.googleapis.com
+terraform apply
 ```
 
-### Enhanced Database Security
-```hcl
-resource "google_sql_database_instance" "wiki_postgres" {
-  settings {
-    ip_configuration {
-      ipv4_enabled = false  # Private IP only
-      require_ssl  = true   # Force SSL connections
-    }
-  }
-}
+**Issue: "VPC Access Connector creation timeout"**
+```bash
+# Solution: Verify VPC and wait for completion
+gcloud compute networks vpc-access connectors list --region=us-central1
 ```
 
-### Multi-Region Secrets
-```hcl
-resource "google_secret_manager_secret" "db_password" {
-  replication {
-    user_managed {
-      replicas {
-        location = "us-central1"
-      }
-      replicas {
-        location = "us-east1"
-      }
-    }
-  }
-}
+**Issue: "Secret not found"**
+```bash
+# Solution: Wait for Secret Manager propagation
+sleep 60
+gcloud secrets list
+```
+
+**Issue: "Docker authentication failed"**
+```bash
+# Solution: Re-authenticate Docker
+gcloud auth configure-docker us-central1-docker.pkg.dev
+```
+
+### Debug Commands
+```bash
+# Check all created resources
+gcloud projects get-iam-policy $PROJECT_ID
+gcloud compute networks list
+gcloud sql instances list
+gcloud run services list
+gcloud secrets list
+
+# Check logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=wiki-js" --limit=50
 ```
 
 ## 🧹 Cleanup
 
-To destroy all resources (including secrets):
+To destroy all created resources:
 
 ```bash
 terraform destroy
 ```
 
-⚠️ **Warning**: This will permanently delete:
-- Your wiki database and all content
-- Container images in Artifact Registry  
-- Stored secrets in Secret Manager
+**⚠️ Warning**: This permanently deletes all infrastructure and data.
 
-## 🐛 Troubleshooting
+## 📁 Repository Structure
 
-### Common Issues
-
-**"Secret not found" errors**
-- Wait 1-2 minutes after deployment for secrets to propagate
-- Check Secret Manager console for secret status
-
-**"Permission denied" on secrets**
-- Verify service account has `secretmanager.secretAccessor` role
-- Check secret IAM policies
-
-**Database connection issues**
-- Verify Cloud SQL allows connections from Cloud Run
-- Check Cloud Run logs for credential errors
-
-### Debugging Commands
-
-```bash
-# Check secret values (careful - shows actual password!)
-gcloud secrets versions access latest --secret=wiki-js-db-password
-
-# Check Cloud Run environment (won't show secret values)
-gcloud run services describe wiki-js --region=us-central1
-
-# View application logs
-gcloud run services logs read wiki-js --region=us-central1
+```
+.
+├── main.tf              # Main Terraform configuration
+├── README.md           # This documentation
+├── .gitignore          # Git ignore patterns
+└── terraform.tfvars.example  # Example variables file
 ```
 
-## 🏆 Production Recommendations
+## 📝 Notes
 
-### Enhanced Security
-- Enable **VPC Connector** for private database access
-- Use **Cloud SQL Proxy** for secure connections
-- Configure **IP allowlists** for database access
-- Enable **audit logging** for all resources
-- Set up **secret rotation** schedules
+- **Deployment Time**: Expect 5-10 minutes for complete deployment
+- **Resource Cleanup**: Use `terraform destroy` to avoid ongoing costs
+- **Security**: All credentials are auto-generated and stored securely
+- **Scalability**: Cloud Run auto-scales based on demand
+- **Monitoring**: Access logs via Google Cloud Console
 
-### High Availability
-- Use **Cloud SQL High Availability** configuration
-- Configure **multi-region** secret replication
-- Set up **Cloud Run minimum instances** for zero cold starts
-- Enable **Cloud SQL read replicas** for scaling
+## 🔗 Useful Links
 
-### Monitoring & Alerting
-- Set up **uptime checks** for your wiki
-- Configure **error rate alerts** 
-- Monitor **database performance** metrics
-- Track **secret access** patterns
+- [Google Cloud Console](https://console.cloud.google.com/)
+- [Cloud Run Dashboard](https://console.cloud.google.com/run)
+- [Cloud SQL Dashboard](https://console.cloud.google.com/sql)
+- [Secret Manager Dashboard](https://console.cloud.google.com/security/secret-manager)
+- [Terraform Documentation](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
 
-## 🤝 Contributing
-
-1. Fork this repository
-2. Create a feature branch: `git checkout -b feature/security-enhancement`
-3. Commit changes: `git commit -am 'Add security feature'`
-4. Push to branch: `git push origin feature/security-enhancement`
-5. Submit a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Wiki.js](https://wiki.js.org/) - Outstanding wiki platform
-- [Google Cloud Platform](https://cloud.google.com/) - Enterprise cloud infrastructure
-- [Google Secret Manager](https://cloud.google.com/secret-manager) - Secure credential storage
-- [Terraform](https://www.terraform.io/) - Infrastructure as Code excellence
-
----
-
-**⭐ If this secure deployment helped you, please give it a star!** ⭐
-
-## 🛡️ Security Badge
-
-This deployment follows Google Cloud security best practices:
-- ✅ No hardcoded credentials
-- ✅ Encrypted secret storage  
-- ✅ Least privilege access
-- ✅ Audit logging enabled
-- ✅ Secure service communication
