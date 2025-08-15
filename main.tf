@@ -1146,7 +1146,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
                     filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/cpu/utilizations\""
                     aggregation = {
                       alignmentPeriod    = "300s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      perSeriesAligner   = "ALIGN_DELTA"
                       crossSeriesReducer = "REDUCE_MEAN"
                       groupByFields      = ["resource.label.service_name"]
                     }
@@ -1177,7 +1177,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
                     filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/memory/utilizations\""
                     aggregation = {
                       alignmentPeriod    = "300s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      perSeriesAligner   = "ALIGN_DELTA"
                       crossSeriesReducer = "REDUCE_MEAN"
                       groupByFields      = ["resource.label.service_name"]
                     }
@@ -1604,16 +1604,4 @@ output "next_steps" {
     ╚══════════════════════════════════════════════════════════════════════════════════════╝
     
   EOT
-}
-
-# Database connection (completely private now)
-output "database_info" {
-  description = "Database connection details (private network only)"
-  value = {
-    private_ip = google_sql_database_instance.wiki_postgres.private_ip_address
-    database   = google_sql_database.wiki_database.name
-    port       = 5432
-    network    = google_compute_network.wiki_js_vpc.name
-    note       = "Database accessible only via private network. Credentials in Secret Manager."
-  }
 }
