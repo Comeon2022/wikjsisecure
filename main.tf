@@ -447,6 +447,13 @@ resource "google_cloud_run_v2_service" "wiki_js" {
       egress    = "PRIVATE_RANGES_ONLY"
     }
     
+    # Annotations for troubleshooting
+    annotations = {
+      "autoscaling.knative.dev/minScale" = "0"
+      "autoscaling.knative.dev/maxScale" = "10"
+      "run.googleapis.com/execution-environment" = "gen2"
+    }
+    
     containers {
       image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:2"
       
@@ -495,6 +502,28 @@ resource "google_cloud_run_v2_service" "wiki_js" {
         value = google_sql_database.wiki_database.name
       }
       
+      # SSL Configuration for secure database connection
+      env {
+        name  = "DB_SSL"
+        value = "true"
+      }
+      
+      env {
+        name  = "DB_SSL_CA"
+        value = "false"  # Don't verify CA for Cloud SQL
+      }
+      
+      # Add debugging environment variables
+      env {
+        name  = "NODE_ENV"
+        value = "production"
+      }
+      
+      env {
+        name  = "WIKI_LOG_LEVEL"
+        value = "info"
+      }
+      
       # Resource configuration
       resources {
         limits = {
@@ -505,16 +534,16 @@ resource "google_cloud_run_v2_service" "wiki_js" {
         startup_cpu_boost = false
       }
       
-      # Health checks
+      # Health checks - more lenient for Wiki.js startup
       startup_probe {
         http_get {
           path = "/"
           port = 3000
         }
-        initial_delay_seconds = 30
-        timeout_seconds      = 10
-        period_seconds       = 10
-        failure_threshold    = 3
+        initial_delay_seconds = 120  # Give Wiki.js more time to start
+        timeout_seconds      = 30   # Longer timeout
+        period_seconds       = 30   # Check less frequently
+        failure_threshold    = 10   # More tolerant of failures
       }
       
       liveness_probe {
@@ -522,10 +551,10 @@ resource "google_cloud_run_v2_service" "wiki_js" {
           path = "/"
           port = 3000
         }
-        initial_delay_seconds = 60
-        timeout_seconds      = 5
-        period_seconds       = 30
-        failure_threshold    = 3
+        initial_delay_seconds = 180  # Wait longer before liveness checks
+        timeout_seconds      = 10
+        period_seconds       = 60   # Check less frequently
+        failure_threshold    = 5    # More tolerant
       }
     }
     
