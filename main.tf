@@ -1006,7 +1006,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         {
           width = 6
           height = 4
@@ -1030,7 +1030,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         
         # ===== CLOUD RUN PERFORMANCE ROW =====
         {
@@ -1062,7 +1062,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         {
           width = 6
           height = 4
@@ -1092,7 +1092,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         
         # ===== DATABASE PERFORMANCE ROW =====
         {
@@ -1122,7 +1122,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         {
           width = 6
           height = 4
@@ -1151,7 +1151,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         
         # ===== REQUEST METRICS ROW =====
         {
@@ -1182,7 +1182,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         {
           width = 4
           height = 4
@@ -1212,7 +1212,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         {
           width = 4
           height = 4
@@ -1240,7 +1240,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         
         # ===== DATABASE CONNECTIONS ROW =====
         {
@@ -1270,7 +1270,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         {
           width = 6
           height = 4
@@ -1300,7 +1300,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         
         # ===== SLOW REQUESTS ROW =====
         {
@@ -1330,7 +1330,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               }
             }
           }
-        }
+        },
         
         # ===== LOG INSIGHTS ROW =====
         {
