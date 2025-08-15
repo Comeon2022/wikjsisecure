@@ -690,3 +690,684 @@ output "database_info" {
     note       = "Database accessible only via private network. Credentials in Secret Manager."
   }
 }
+
+# =============================================================================
+# MONITORING AND ANALYTICS CONFIGURATION
+# =============================================================================
+
+# Enable monitoring APIs
+resource "google_project_service" "monitoring_apis" {
+  for_each = toset([
+    "monitoring.googleapis.com",
+    "bigquery.googleapis.com",
+    "cloudasset.googleapis.com"
+  ])
+  
+  project = var.project_id
+  service = each.value
+  
+  disable_on_destroy         = false
+  disable_dependent_services = false
+  
+  depends_on = [google_project_service.required_apis]
+}
+
+# Wait for monitoring APIs to be ready
+resource "time_sleep" "wait_for_monitoring_apis" {
+  depends_on      = [google_project_service.monitoring_apis]
+  create_duration = "60s"
+}
+
+# =============================================================================
+# LOG-BASED METRICS FOR CUSTOM ANALYTICS
+# =============================================================================
+
+# Site visitor tracking metric
+resource "google_logging_metric" "wiki_page_views" {
+  name   = "wiki_page_views"
+  filter = <<-EOT
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="wiki-js"
+    httpRequest.requestMethod="GET"
+    httpRequest.status>=200
+    httpRequest.status<300
+    NOT httpRequest.requestUrl=~"/assets/"
+    NOT httpRequest.requestUrl=~"/favicon"
+    NOT httpRequest.requestUrl=~"/_health"
+  EOT
+
+  label_extractors = {
+    "user_agent" = "EXTRACT(httpRequest.userAgent)"
+    "ip_address" = "EXTRACT(httpRequest.remoteIp)"
+    "page_url"   = "EXTRACT(httpRequest.requestUrl)"
+    "status"     = "EXTRACT(httpRequest.status)"
+  }
+
+  metric_descriptor {
+    metric_kind  = "COUNTER"
+    value_type   = "INT64"
+    display_name = "Wiki.js Page Views"
+  }
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# User session tracking metric
+resource "google_logging_metric" "wiki_user_sessions" {
+  name   = "wiki_user_sessions"
+  filter = <<-EOT
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="wiki-js"
+    (jsonPayload.msg=~"User .* logged in" OR 
+     jsonPayload.message=~"User .* authenticated" OR
+     textPayload=~"LOGIN")
+  EOT
+
+  label_extractors = {
+    "user_id"    = "EXTRACT(jsonPayload.userId)"
+    "user_email" = "EXTRACT(jsonPayload.userEmail)"
+    "ip_address" = "EXTRACT(httpRequest.remoteIp)"
+  }
+
+  metric_descriptor {
+    metric_kind  = "COUNTER"
+    value_type   = "INT64"
+    display_name = "Wiki.js User Logins"
+  }
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# Error tracking metric
+resource "google_logging_metric" "wiki_errors" {
+  name   = "wiki_errors"
+  filter = <<-EOT
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="wiki-js"
+    (severity>=ERROR OR 
+     httpRequest.status>=400 OR
+     jsonPayload.level="error" OR
+     textPayload=~"ERROR")
+  EOT
+
+  label_extractors = {
+    "error_type"    = "EXTRACT(jsonPayload.errorType)"
+    "error_message" = "EXTRACT(jsonPayload.message)"
+    "status_code"   = "EXTRACT(httpRequest.status)"
+    "page_url"      = "EXTRACT(httpRequest.requestUrl)"
+  }
+
+  metric_descriptor {
+    metric_kind  = "COUNTER"
+    value_type   = "INT64"
+    display_name = "Wiki.js Errors"
+  }
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# Performance tracking metric
+resource "google_logging_metric" "slow_requests" {
+  name   = "slow_requests"
+  filter = <<-EOT
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="wiki-js"
+    httpRequest.latency>"2s"
+  EOT
+
+  label_extractors = {
+    "latency"  = "EXTRACT(httpRequest.latency)"
+    "page_url" = "EXTRACT(httpRequest.requestUrl)"
+    "method"   = "EXTRACT(httpRequest.requestMethod)"
+  }
+
+  metric_descriptor {
+    metric_kind  = "COUNTER"
+    value_type   = "INT64"
+    display_name = "Slow Requests (>2s)"
+  }
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# =============================================================================
+# BIGQUERY DATASET FOR LOG ANALYTICS
+# =============================================================================
+
+# BigQuery dataset for log analysis
+resource "google_bigquery_dataset" "wiki_logs_dataset" {
+  dataset_id                  = "wiki_js_logs"
+  friendly_name               = "Wiki.js Application Logs"
+  description                 = "Centralized logging for Wiki.js analytics and monitoring"
+  location                    = var.region
+  default_table_expiration_ms = 2592000000  # 30 days
+
+  labels = {
+    application = "wiki-js"
+    purpose     = "logging"
+  }
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# Log sink to BigQuery
+resource "google_logging_project_sink" "wiki_logs_to_bigquery" {
+  name = "wiki-js-logs-sink"
+  
+  destination = "bigquery.googleapis.com/projects/${var.project_id}/datasets/${google_bigquery_dataset.wiki_logs_dataset.dataset_id}"
+  
+  filter = <<-EOT
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="wiki-js"
+    OR
+    (resource.type="gce_instance" AND resource.labels.database_id="${google_sql_database_instance.wiki_postgres.name}")
+  EOT
+  
+  unique_writer_identity = true
+
+  depends_on = [google_bigquery_dataset.wiki_logs_dataset]
+}
+
+# Grant BigQuery data editor role to log sink
+resource "google_project_iam_member" "log_sink_bigquery" {
+  project = var.project_id
+  role    = "roles/bigquery.dataEditor"
+  member  = google_logging_project_sink.wiki_logs_to_bigquery.writer_identity
+
+  depends_on = [google_logging_project_sink.wiki_logs_to_bigquery]
+}
+
+# =============================================================================
+# ALERTING POLICIES
+# =============================================================================
+
+# High error rate alert
+resource "google_monitoring_alert_policy" "high_error_rate" {
+  display_name = "Wiki.js High Error Rate"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "Error rate > 5%"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/request_count\""
+      comparison      = "COMPARISON_GREATER_THAN"
+      threshold_value = 0.05
+      duration        = "300s"
+      
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_RATE"
+        cross_series_reducer = "REDUCE_MEAN"
+        group_by_fields      = ["resource.label.service_name"]
+      }
+    }
+  }
+  
+  notification_channels = []
+  
+  alert_strategy {
+    auto_close = "1800s"
+  }
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# High CPU usage alert for Cloud Run
+resource "google_monitoring_alert_policy" "high_cpu_usage" {
+  display_name = "Wiki.js High CPU Usage"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "CPU utilization > 80%"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/cpu/utilizations\""
+      comparison      = "COMPARISON_GREATER_THAN"
+      threshold_value = 0.8
+      duration        = "300s"
+      
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MAX"
+        group_by_fields      = ["resource.label.service_name"]
+      }
+    }
+  }
+  
+  notification_channels = []
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# Database high CPU alert
+resource "google_monitoring_alert_policy" "database_high_cpu" {
+  display_name = "PostgreSQL High CPU Usage"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "Database CPU > 80%"
+    
+    condition_threshold {
+      filter          = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
+      comparison      = "COMPARISON_GREATER_THAN"
+      threshold_value = 0.8
+      duration        = "300s"
+      
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MAX"
+      }
+    }
+  }
+  
+  notification_channels = []
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# =============================================================================
+# COMPREHENSIVE MONITORING DASHBOARD
+# =============================================================================
+
+resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
+  dashboard_json = jsonencode({
+    displayName = "🔐 Wiki.js Complete Analytics Dashboard"
+    mosaicLayout = {
+      tiles = [
+        # ===== SITE ANALYTICS ROW =====
+        {
+          width = 6
+          height = 4
+          widget = {
+            title = "📊 Page Views (Last 24h)"
+            scorecard = {
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_page_views.name}\""
+                  aggregation = {
+                    alignmentPeriod    = "3600s"
+                    perSeriesAligner   = "ALIGN_RATE"
+                    crossSeriesReducer = "REDUCE_SUM"
+                  }
+                }
+              }
+              sparkChartView = {
+                sparkChartType = "SPARK_LINE"
+              }
+              gaugeView = {
+                lowerBound = 0
+                upperBound = 1000
+              }
+            }
+          }
+        }
+        {
+          width = 6
+          height = 4
+          yPos = 0
+          xPos = 6
+          widget = {
+            title = "👥 User Sessions (Last 24h)"
+            scorecard = {
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_user_sessions.name}\""
+                  aggregation = {
+                    alignmentPeriod    = "3600s"
+                    perSeriesAligner   = "ALIGN_RATE"
+                    crossSeriesReducer = "REDUCE_SUM"
+                  }
+                }
+              }
+              sparkChartView = {
+                sparkChartType = "SPARK_BAR"
+              }
+            }
+          }
+        }
+        
+        # ===== CLOUD RUN PERFORMANCE ROW =====
+        {
+          width = 6
+          height = 4
+          yPos = 4
+          widget = {
+            title = "🖥️ Cloud Run CPU Utilization"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/cpu/utilizations\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_MEAN"
+                      crossSeriesReducer = "REDUCE_MEAN"
+                      groupByFields      = ["resource.label.service_name"]
+                    }
+                  }
+                }
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              timeshiftDuration = "0s"
+              yAxis = {
+                label = "CPU %"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        {
+          width = 6
+          height = 4
+          yPos = 4
+          xPos = 6
+          widget = {
+            title = "💾 Cloud Run Memory Utilization"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/memory/utilizations\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_MEAN"
+                      crossSeriesReducer = "REDUCE_MEAN"
+                      groupByFields      = ["resource.label.service_name"]
+                    }
+                  }
+                }
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Memory %"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        
+        # ===== DATABASE PERFORMANCE ROW =====
+        {
+          width = 6
+          height = 4
+          yPos = 8
+          widget = {
+            title = "🗄️ PostgreSQL CPU Usage"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_MEAN"
+                      crossSeriesReducer = "REDUCE_MEAN"
+                    }
+                  }
+                }
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "CPU %"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        {
+          width = 6
+          height = 4
+          yPos = 8
+          xPos = 6
+          widget = {
+            title = "💽 PostgreSQL Memory Usage"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/memory/utilization\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_MEAN"
+                      crossSeriesReducer = "REDUCE_MEAN"
+                    }
+                  }
+                }
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Memory %"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        
+        # ===== REQUEST METRICS ROW =====
+        {
+          width = 4
+          height = 4
+          yPos = 12
+          widget = {
+            title = "🚀 Request Count"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/request_count\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_SUM"
+                      groupByFields      = ["resource.label.service_name"]
+                    }
+                  }
+                }
+                plotType = "STACKED_BAR"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Requests/sec"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        {
+          width = 4
+          height = 4
+          yPos = 12
+          xPos = 4
+          widget = {
+            title = "⏱️ Response Latency (95th percentile)"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/request_latencies\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_DELTA"
+                      crossSeriesReducer = "REDUCE_PERCENTILE_95"
+                      groupByFields      = ["resource.label.service_name"]
+                    }
+                  }
+                }
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Latency (ms)"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        {
+          width = 4
+          height = 4
+          yPos = 12
+          xPos = 8
+          widget = {
+            title = "❌ Error Rate"
+            scorecard = {
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_errors.name}\""
+                  aggregation = {
+                    alignmentPeriod    = "300s"
+                    perSeriesAligner   = "ALIGN_RATE"
+                    crossSeriesReducer = "REDUCE_SUM"
+                  }
+                }
+              }
+              sparkChartView = {
+                sparkChartType = "SPARK_LINE"
+              }
+              gaugeView = {
+                lowerBound = 0
+                upperBound = 10
+              }
+            }
+          }
+        }
+        
+        # ===== DATABASE CONNECTIONS ROW =====
+        {
+          width = 6
+          height = 4
+          yPos = 16
+          widget = {
+            title = "🔗 Database Connections"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/num_backends\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_MEAN"
+                      crossSeriesReducer = "REDUCE_MEAN"
+                    }
+                  }
+                }
+                plotType = "STACKED_AREA"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Active Connections"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        {
+          width = 6
+          height = 4
+          yPos = 16
+          xPos = 6
+          widget = {
+            title = "📊 Database Transactions"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/transaction_count\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_SUM"
+                    }
+                  }
+                }
+                plotType = "LINE"
+                targetAxis = "Y1"
+                legendTemplate = "Transactions/sec"
+              }]
+              yAxis = {
+                label = "Transactions/sec"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        
+        # ===== SLOW REQUESTS ROW =====
+        {
+          width = 12
+          height = 4
+          yPos = 20
+          widget = {
+            title = "🐌 Slow Requests (>2 seconds)"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.slow_requests.name}\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_SUM"
+                    }
+                  }
+                }
+                plotType = "STACKED_BAR"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Slow Requests/sec"
+                scale = "LINEAR"
+              }
+            }
+          }
+        }
+        
+        # ===== LOG INSIGHTS ROW =====
+        {
+          width = 12
+          height = 6
+          yPos = 24
+          widget = {
+            title = "📋 Recent Application Logs"
+            logsPanel = {
+              filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"wiki-js\""
+              resourceNames = []
+            }
+          }
+        }
+      ]
+    }
+  })
+
+  depends_on = [
+    google_logging_metric.wiki_page_views,
+    google_logging_metric.wiki_user_sessions,
+    google_logging_metric.wiki_errors,
+    google_logging_metric.slow_requests,
+    time_sleep.wait_for_monitoring_apis
+  ]
+}
+
+# Monitoring and analytics outputs
+output "monitoring_info" {
+  description = "📊 Monitoring and Analytics Information"
+  value = {
+    "📊 Main Dashboard"           = "https://console.cloud.google.com/monitoring/dashboards/custom/${google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id}?project=${var.project_id}"
+    "🔍 Logs Explorer"            = "https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20AND%20resource.labels.service_name%3D%22wiki-js%22?project=${var.project_id}"
+    "📈 BigQuery Dataset"         = "https://console.cloud.google.com/bigquery?project=${var.project_id}&ws=!1m4!1m3!3m2!1s${var.project_id}!2s${google_bigquery_dataset.wiki_logs_dataset.dataset_id}"
+    "🚨 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
+    "📊 All Dashboards"           = "https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}"
+    "🔐 Secret Manager"           = "https://console.cloud.google.com/security/secret-manager?project=${var.project_id}"
+    "📋 Log-based Metrics"        = "Custom metrics: wiki_page_views, wiki_user_sessions, wiki_errors, slow_requests"
+  }
+}

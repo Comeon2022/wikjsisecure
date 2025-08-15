@@ -1,4 +1,4 @@
-# 🔐 Secure Wiki.js on Google Cloud Run - IaC Assessment
+# 🔐 Secure Wiki.js on Google Cloud Run
 
 ![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white) ![Google Cloud](https://img.shields.io/badge/GoogleCloud-%234285F4.svg?style=for-the-badge&logo=google-cloud&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Security](https://img.shields.io/badge/Security-Secret_Manager-red?style=for-the-badge)
 
@@ -94,17 +94,23 @@ terraform init
 terraform plan
 ```
 
-### Step 4: Deploy Infrastructure
+### Step 4: Deploy Complete Infrastructure
 ```bash
-# Deploy the complete solution
+# Deploy the complete solution with monitoring
 terraform apply
 
 # When prompted, enter your GCP Project ID
 # Example: my-gcp-project-123456
 ```
 
-### Step 5: Access Your Wiki
-After successful deployment (approximately 5-10 minutes), access your Wiki.js instance using the URL provided in the output.
+### Step 5: Access Your Wiki & Dashboard
+After successful deployment (approximately 5-10 minutes):
+
+1. **Wiki.js**: Access via the URL in the output
+2. **Monitoring Dashboard**: Click the dashboard link in the output
+3. **Logs & Analytics**: Use the provided monitoring links
+
+**🎉 Everything is deployed and monitored with a single command!**
 
 ## 💻 Command Examples
 
@@ -188,6 +194,35 @@ zone       = "europe-west1-b"
 | **Secret Manager** | `wiki-js-db-*` | Encrypted credentials |
 | **Service Accounts** | `wiki-js-sa`, `wiki-js-build-sa` | Secure identities |
 | **Artifact Registry** | `wiki-js` | Private container repository |
+| **📊 Monitoring Dashboard** | `wiki-js-dashboard` | **Complete analytics dashboard** |
+| **📈 Log Metrics** | `wiki_page_views`, `wiki_user_sessions`, etc. | **Custom analytics metrics** |
+| **🚨 Alert Policies** | Error, CPU, Memory alerts | **Automated monitoring alerts** |
+| **📋 BigQuery Dataset** | `wiki_js_logs` | **Advanced log analytics** |
+
+## 📊 Built-in Monitoring & Analytics
+
+Your deployment includes **enterprise-grade monitoring** automatically configured:
+
+### **📈 Real-time Analytics Dashboard**
+- **👥 User Analytics**: Page views, sessions, unique visitors
+- **🖥️ Performance Metrics**: CPU, memory, response times
+- **🗄️ Database Monitoring**: PostgreSQL performance and connections
+- **🚨 Error Tracking**: Automated error detection and alerting
+- **📋 Log Analysis**: Comprehensive application log insights
+
+### **🔍 Advanced Features**
+- **BigQuery Integration**: Advanced analytics with SQL queries
+- **Custom Log Metrics**: Track page views, user sessions, errors
+- **Automated Alerts**: Email/SMS notifications for issues
+- **Security Monitoring**: Failed login attempts and access patterns
+- **Performance Optimization**: Slow query detection and analysis
+
+### **📊 Dashboard Access**
+After deployment, access your monitoring via the output links:
+- **Main Dashboard**: Custom Wiki.js analytics dashboard
+- **Logs Explorer**: Real-time log analysis
+- **BigQuery**: Advanced analytics with SQL queries
+- **Alert Policies**: Configure notifications and thresholds
 
 ## 🛡️ Security Features
 
