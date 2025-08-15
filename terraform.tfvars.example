@@ -1,0 +1,33 @@
+# =============================================================================
+# Terraform Variables Configuration - Secure Wiki.js Deployment
+# 
+# 🔐 SECURITY NOTE: This file contains NO sensitive information!
+# Database credentials are automatically generated and stored in Secret Manager
+# 
+# Copy this file to terraform.tfvars and update the values
+# or provide values via command line: terraform apply -var="project_id=my-project"
+# =============================================================================
+
+# REQUIRED: Your Google Cloud Project ID
+project_id = "your-gcp-project-id-here"
+
+# OPTIONAL: Google Cloud Region (default: us-central1)
+# region = "us-central1"
+
+# OPTIONAL: Google Cloud Zone (default: us-central1-a)  
+# zone = "us-central1-a"
+
+# =============================================================================
+# 🔐 SECURITY FEATURES:
+# - Database password: Auto-generated 32-character random password
+# - Credentials storage: Google Secret Manager (encrypted)
+# - Service accounts: Least privilege access only
+# - No hardcoded secrets: All sensitive data managed securely
+# =============================================================================
+
+# =============================================================================
+# Examples:
+# project_id = "my-secure-wiki-project-123456"
+# region     = "europe-west1"
+# zone       = "europe-west1-b"
+# =============================================================================
