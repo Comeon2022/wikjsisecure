@@ -971,6 +971,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
   dashboard_json = jsonencode({
     displayName = "🔐 Wiki.js Complete Analytics Dashboard"
     mosaicLayout = {
+      columns = 12
       tiles = [
         # ===== SITE ANALYTICS ROW =====
         {
