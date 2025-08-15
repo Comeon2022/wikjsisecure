@@ -737,7 +737,7 @@ resource "google_logging_metric" "wiki_page_views" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "CUMULATIVE"
+    metric_kind  = "GAUGE"
     value_type   = "INT64"
     display_name = "Wiki.js Page Views"
   }
@@ -760,7 +760,7 @@ resource "google_logging_metric" "wiki_user_sessions" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "CUMULATIVE"
+    metric_kind  = "GAUGE"
     value_type   = "INT64"
     display_name = "Wiki.js User Logins"
   }
@@ -784,7 +784,7 @@ resource "google_logging_metric" "wiki_errors" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "CUMULATIVE"
+    metric_kind  = "GAUGE"
     value_type   = "INT64"
     display_name = "Wiki.js Errors"
   }
@@ -805,7 +805,7 @@ resource "google_logging_metric" "slow_requests" {
   EOT
 
   metric_descriptor {
-    metric_kind  = "CUMULATIVE"
+    metric_kind  = "GAUGE"
     value_type   = "INT64"
     display_name = "Slow Requests (>2s)"
   }
@@ -917,8 +917,8 @@ resource "google_monitoring_alert_policy" "high_cpu_usage" {
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_INTERPOLATE"
-        cross_series_reducer = "REDUCE_MAX"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MEAN"
         group_by_fields      = ["resource.label.service_name"]
       }
     }
@@ -942,15 +942,15 @@ resource "google_monitoring_alert_policy" "database_high_cpu" {
     display_name = "Database CPU > 80%"
     
     condition_threshold {
-      filter          = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
+      filter          = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
       comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "300s"
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_INTERPOLATE"
-        cross_series_reducer = "REDUCE_MAX"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MEAN"
       }
     }
   }
@@ -959,7 +959,7 @@ resource "google_monitoring_alert_policy" "database_high_cpu" {
 
   depends_on = [
     time_sleep.wait_for_monitoring_apis,
-    google_sql_database_instance.wiki_postgres
+    time_sleep.wait_for_sql_instance
   ]
 }
 
@@ -1097,7 +1097,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
+                    filter = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
                     aggregation = {
                       alignmentPeriod    = "300s"
                       perSeriesAligner   = "ALIGN_MEAN"
@@ -1126,7 +1126,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/memory/utilization\""
+                    filter = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/memory/utilization\""
                     aggregation = {
                       alignmentPeriod    = "300s"
                       perSeriesAligner   = "ALIGN_MEAN"
@@ -1245,7 +1245,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/num_backends\""
+                    filter = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/num_backends\""
                     aggregation = {
                       alignmentPeriod    = "300s"
                       perSeriesAligner   = "ALIGN_MEAN"
@@ -1274,7 +1274,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/transaction_count\""
+                    filter = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/postgresql/transaction_count\""
                     aggregation = {
                       alignmentPeriod    = "300s"
                       perSeriesAligner   = "ALIGN_RATE"
