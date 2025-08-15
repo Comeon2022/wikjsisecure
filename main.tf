@@ -744,7 +744,7 @@ resource "google_logging_metric" "wiki_page_views" {
   }
 
   metric_descriptor {
-    metric_kind  = "COUNTER"
+    metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Wiki.js Page Views"
   }
@@ -770,7 +770,7 @@ resource "google_logging_metric" "wiki_user_sessions" {
   }
 
   metric_descriptor {
-    metric_kind  = "COUNTER"
+    metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Wiki.js User Logins"
   }
@@ -798,7 +798,7 @@ resource "google_logging_metric" "wiki_errors" {
   }
 
   metric_descriptor {
-    metric_kind  = "COUNTER"
+    metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Wiki.js Errors"
   }
@@ -822,7 +822,7 @@ resource "google_logging_metric" "slow_requests" {
   }
 
   metric_descriptor {
-    metric_kind  = "COUNTER"
+    metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Slow Requests (>2s)"
   }
@@ -892,7 +892,7 @@ resource "google_monitoring_alert_policy" "high_error_rate" {
     
     condition_threshold {
       filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/request_count\""
-      comparison      = "COMPARISON_GREATER_THAN"
+      comparison      = "COMPARISON_GT"
       threshold_value = 0.05
       duration        = "300s"
       
@@ -925,7 +925,7 @@ resource "google_monitoring_alert_policy" "high_cpu_usage" {
     
     condition_threshold {
       filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/cpu/utilizations\""
-      comparison      = "COMPARISON_GREATER_THAN"
+      comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "300s"
       
@@ -954,7 +954,7 @@ resource "google_monitoring_alert_policy" "database_high_cpu" {
     
     condition_threshold {
       filter          = "resource.type=\"gce_instance\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
-      comparison      = "COMPARISON_GREATER_THAN"
+      comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "300s"
       
