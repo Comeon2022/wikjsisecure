@@ -371,9 +371,9 @@ resource "google_sql_database_instance" "wiki_postgres" {
   deletion_protection = false
   
   timeouts {
-    create = "30m"
-    update = "30m"  
-    delete = "30m"
+    create = "45m"  # Increased timeout
+    update = "45m"  
+    delete = "45m"
   }
   
   depends_on = [
@@ -385,7 +385,7 @@ resource "google_sql_database_instance" "wiki_postgres" {
 # Wait for Cloud SQL instance to be fully operational
 resource "time_sleep" "wait_for_sql_instance" {
   depends_on      = [google_sql_database_instance.wiki_postgres]
-  create_duration = "120s"
+  create_duration = "180s"  # Increased wait time
 }
 
 # Create Wiki.js database
@@ -736,20 +736,16 @@ resource "google_logging_metric" "wiki_page_views" {
     NOT httpRequest.requestUrl=~"/_health"
   EOT
 
-  label_extractors = {
-    "user_agent" = "EXTRACT(httpRequest.userAgent)"
-    "ip_address" = "EXTRACT(httpRequest.remoteIp)"
-    "page_url"   = "EXTRACT(httpRequest.requestUrl)"
-    "status"     = "EXTRACT(httpRequest.status)"
-  }
-
   metric_descriptor {
     metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Wiki.js Page Views"
   }
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js
+  ]
 }
 
 # User session tracking metric
@@ -763,19 +759,16 @@ resource "google_logging_metric" "wiki_user_sessions" {
      textPayload=~"LOGIN")
   EOT
 
-  label_extractors = {
-    "user_id"    = "EXTRACT(jsonPayload.userId)"
-    "user_email" = "EXTRACT(jsonPayload.userEmail)"
-    "ip_address" = "EXTRACT(httpRequest.remoteIp)"
-  }
-
   metric_descriptor {
     metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Wiki.js User Logins"
   }
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js
+  ]
 }
 
 # Error tracking metric
@@ -790,20 +783,16 @@ resource "google_logging_metric" "wiki_errors" {
      textPayload=~"ERROR")
   EOT
 
-  label_extractors = {
-    "error_type"    = "EXTRACT(jsonPayload.errorType)"
-    "error_message" = "EXTRACT(jsonPayload.message)"
-    "status_code"   = "EXTRACT(httpRequest.status)"
-    "page_url"      = "EXTRACT(httpRequest.requestUrl)"
-  }
-
   metric_descriptor {
     metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Wiki.js Errors"
   }
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js
+  ]
 }
 
 # Performance tracking metric
@@ -815,19 +804,16 @@ resource "google_logging_metric" "slow_requests" {
     httpRequest.latency>"2s"
   EOT
 
-  label_extractors = {
-    "latency"  = "EXTRACT(httpRequest.latency)"
-    "page_url" = "EXTRACT(httpRequest.requestUrl)"
-    "method"   = "EXTRACT(httpRequest.requestMethod)"
-  }
-
   metric_descriptor {
     metric_kind  = "CUMULATIVE"
     value_type   = "INT64"
     display_name = "Slow Requests (>2s)"
   }
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js
+  ]
 }
 
 # =============================================================================
@@ -931,7 +917,7 @@ resource "google_monitoring_alert_policy" "high_cpu_usage" {
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MEAN"
+        per_series_aligner   = "ALIGN_INTERPOLATE"
         cross_series_reducer = "REDUCE_MAX"
         group_by_fields      = ["resource.label.service_name"]
       }
@@ -940,7 +926,10 @@ resource "google_monitoring_alert_policy" "high_cpu_usage" {
   
   notification_channels = []
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js
+  ]
 }
 
 # Database high CPU alert
@@ -960,7 +949,7 @@ resource "google_monitoring_alert_policy" "database_high_cpu" {
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MEAN"
+        per_series_aligner   = "ALIGN_INTERPOLATE"
         cross_series_reducer = "REDUCE_MAX"
       }
     }
@@ -968,7 +957,10 @@ resource "google_monitoring_alert_policy" "database_high_cpu" {
   
   notification_channels = []
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_sql_database_instance.wiki_postgres
+  ]
 }
 
 # =============================================================================
