@@ -342,7 +342,7 @@ resource "google_sql_database_instance" "wiki_postgres" {
     ip_configuration {
       ipv4_enabled    = false  # 🔒 No public IP
       private_network = google_compute_network.wiki_js_vpc.id
-      ssl_mode        = "ENCRYPTED_ONLY"  # 🔐 Force SSL connections
+      ssl_mode        = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"  # Allow non-SSL on private network
     }
     
     database_flags {
@@ -502,16 +502,14 @@ resource "google_cloud_run_v2_service" "wiki_js" {
         value = google_sql_database.wiki_database.name
       }
       
-      # SSL Configuration for secure database connection
+      # SSL Configuration for Cloud SQL private connection
       env {
         name  = "DB_SSL"
-        value = "true"
+        value = "false"  # Disable SSL for private network
       }
       
-      env {
-        name  = "DB_SSL_CA"
-        value = "false"  # Don't verify CA for Cloud SQL
-      }
+      # Remove SSL requirement since we're on private network
+      # The VPC provides network-level security
       
       # Add debugging environment variables
       env {
