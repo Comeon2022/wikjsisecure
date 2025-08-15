@@ -8,25 +8,42 @@ Deploy [Wiki.js](https://wiki.js.org/) on Google Cloud Run with **enterprise-gra
 
 - **🔐 Secret Manager Integration**: Database credentials stored securely, never in plain text
 - **🎲 Random Password Generation**: 32-character passwords with special characters
+- **🌐 Private Networking**: Database accessible only via private VPC (no public IP)
+- **🔒 SSL Required**: All database connections encrypted with SSL
 - **🔑 Least Privilege IAM**: Service accounts with minimal required permissions
 - **📝 No Credential Exposure**: Passwords never appear in logs, Terraform state, or outputs
 - **🔄 Credential Rotation**: Easy password rotation via Secret Manager
 - **📊 Audit Logging**: All secret access logged for compliance
+- **🚫 Network Isolation**: Cloud SQL completely isolated from public internet
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Cloud Run     │    │   Cloud SQL     │    │ Secret Manager  │
-│   (Wiki.js)     │◄──►│  (PostgreSQL)   │    │  (Credentials)  │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       ▲
-         ▼                       ▼                       │
-┌─────────────────┐    ┌─────────────────┐              │
-│ Artifact Reg.   │    │   Service       │─────────────┘
-│ (Docker Images) │    │   Accounts      │
-└─────────────────┘    └─────────────────┘
+                    🌐 Public Internet
+                         │
+                         ▼
+              ┌─────────────────┐
+              │   Cloud Run     │
+              │   (Wiki.js)     │ 🔐 Public Access
+              │                 │
+              └─────────┬───────┘
+                        │
+                        │ 🔒 VPC Connector
+                        ▼
+              ┌─────────────────┐
+              │  Private VPC    │
+              │                 │
+              │  ┌───────────┐  │
+              │  │Cloud SQL  │  │ 🔐 Private IP Only
+              │  │(PostgreSQL)│  │ 🔒 SSL Required
+              │  └───────────┘  │
+              └─────────────────┘
+                        ▲
+                        │ 🔐 Secret Manager
+              ┌─────────────────┐
+              │   Credentials   │
+              │   (Encrypted)   │
+              └─────────────────┘
 ```
 
 ## ⚡ Quick Start

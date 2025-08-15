@@ -81,7 +81,9 @@ resource "google_project_service" "required_apis" {
     "cloudbuild.googleapis.com",
     "compute.googleapis.com",
     "logging.googleapis.com",
-    "secretmanager.googleapis.com"  # 🔐 Secret Manager API
+    "secretmanager.googleapis.com",  # 🔐 Secret Manager API
+    "vpcaccess.googleapis.com",      # 🌐 VPC Access for private networking
+    "servicenetworking.googleapis.com" # 🔗 Service Networking for Cloud SQL
   ])
   
   project = var.project_id
@@ -108,7 +110,10 @@ resource "google_service_account" "wiki_js_sa" {
   description  = "Service account for Wiki.js Cloud Run application"
   project      = var.project_id
   
-  depends_on = [time_sleep.wait_for_apis]
+  depends_on = [
+    time_sleep.wait_for_apis,
+    google_service_networking_connection.private_vpc_connection
+  ]
 }
 
 # Cloud Build Service Account
@@ -145,7 +150,8 @@ resource "google_project_iam_member" "wiki_js_sa_permissions" {
     "roles/logging.logWriter", 
     "roles/logging.viewer",
     "roles/cloudsql.client",
-    "roles/secretmanager.secretAccessor"  # 🔐 Secret Manager access
+    "roles/secretmanager.secretAccessor",  # 🔐 Secret Manager access
+    "roles/vpcaccess.user"                 # 🌐 VPC Access Connector
   ])
   
   project = var.project_id
@@ -242,7 +248,67 @@ resource "google_secret_manager_secret_version" "db_username" {
 }
 
 # =============================================================================
-# STEP 6: CREATE CLOUD SQL DATABASE
+# STEP 6: CREATE PRIVATE NETWORKING
+# =============================================================================
+
+# Create VPC network for private communication
+resource "google_compute_network" "wiki_js_vpc" {
+  name                    = "wiki-js-vpc"
+  auto_create_subnetworks = false
+  description            = "VPC network for secure Wiki.js deployment"
+  
+  depends_on = [time_sleep.wait_for_apis]
+}
+
+# Create subnet for the VPC
+resource "google_compute_subnetwork" "wiki_js_subnet" {
+  name          = "wiki-js-subnet"
+  ip_cidr_range = "10.0.0.0/24"
+  region        = var.region
+  network       = google_compute_network.wiki_js_vpc.id
+  description   = "Subnet for Wiki.js Cloud Run and Cloud SQL communication"
+  
+  # Enable private Google access
+  private_ip_google_access = true
+}
+
+# Reserve IP range for Cloud SQL private peering
+resource "google_compute_global_address" "private_ip_range" {
+  name          = "wiki-js-private-ip"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.wiki_js_vpc.id
+  description   = "IP range for Cloud SQL private service connection"
+}
+
+# Create private service connection for Cloud SQL
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = google_compute_network.wiki_js_vpc.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
+  
+  depends_on = [google_compute_global_address.private_ip_range]
+}
+
+# Create VPC Access Connector for Cloud Run
+resource "google_vpc_access_connector" "wiki_js_connector" {
+  name          = "wiki-js-connector"
+  region        = var.region
+  network       = google_compute_network.wiki_js_vpc.name
+  ip_cidr_range = "10.8.0.0/28"
+  
+  min_throughput = 200
+  max_throughput = 300
+  
+  depends_on = [
+    google_compute_subnetwork.wiki_js_subnet,
+    time_sleep.wait_for_apis
+  ]
+}
+
+# =============================================================================
+# STEP 7: CREATE CLOUD SQL DATABASE (PRIVATE)
 # =============================================================================
 
 resource "google_sql_database_instance" "wiki_postgres" {
@@ -274,11 +340,9 @@ resource "google_sql_database_instance" "wiki_postgres" {
     }
     
     ip_configuration {
-      ipv4_enabled = true
-      authorized_networks {
-        name  = "allow-all-for-development"
-        value = "0.0.0.0/0"
-      }
+      ipv4_enabled    = false  # 🔒 No public IP
+      private_network = google_compute_network.wiki_js_vpc.id
+      require_ssl     = true   # 🔐 Force SSL connections
     }
     
     database_flags {
@@ -377,6 +441,12 @@ resource "google_cloud_run_v2_service" "wiki_js" {
   template {
     service_account = google_service_account.wiki_js_sa.email
     
+    # VPC Access for private database connection
+    vpc_access {
+      connector = google_vpc_access_connector.wiki_js_connector.id
+      egress    = "PRIVATE_RANGES_ONLY"
+    }
+    
     containers {
       image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:2"
       
@@ -392,7 +462,7 @@ resource "google_cloud_run_v2_service" "wiki_js" {
       
       env {
         name  = "DB_HOST"
-        value = google_sql_database_instance.wiki_postgres.public_ip_address
+        value = google_sql_database_instance.wiki_postgres.private_ip_address
       }
       
       env {
@@ -505,10 +575,11 @@ output "deployment_summary" {
   value = {
     "✅ Status"                = "Wiki.js deployment completed successfully!"
     "🌐 Wiki.js URL"          = google_cloud_run_v2_service.wiki_js.uri
-    "🗄️  Database"            = "${google_sql_database_instance.wiki_postgres.name} (${google_sql_database_instance.wiki_postgres.public_ip_address})"
+    "🗄️  Database"            = "${google_sql_database_instance.wiki_postgres.name} (Private IP Only)"
     "📦 Image Registry"       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}"
     "🔑 Service Account"      = google_service_account.wiki_js_sa.email
-    "🛡️  Security"            = "Database credentials secured with Secret Manager"
+    "🛡️  Security"            = "Private network + Secret Manager + SSL required"
+    "🌐 VPC Connector"        = google_vpc_access_connector.wiki_js_connector.name
     "🏗️  Build Method"        = "Docker pull and push via null_resource"
   }
 }
@@ -540,8 +611,11 @@ output "next_steps" {
     4. Start building your wiki!
     
     🔐 Security Features:
-    - Database credentials are securely stored in Secret Manager
+    - Database credentials securely stored in Secret Manager
     - Random 32-character password automatically generated
+    - Private database network (no public IP)
+    - SSL-required database connections
+    - VPC Access Connector for secure Cloud Run ↔ Database communication
     - Service accounts follow least privilege principles
     - All sensitive data encrypted at rest
     
@@ -560,13 +634,14 @@ output "next_steps" {
   EOT
 }
 
-# Database connection (no longer shows password in output)
+# Database connection (completely private now)
 output "database_info" {
-  description = "Database connection details (credentials in Secret Manager)"
+  description = "Database connection details (private network only)"
   value = {
-    host     = google_sql_database_instance.wiki_postgres.public_ip_address
-    database = google_sql_database.wiki_database.name
-    port     = 5432
-    note     = "Username and password are stored in Secret Manager for security"
+    private_ip = google_sql_database_instance.wiki_postgres.private_ip_address
+    database   = google_sql_database.wiki_database.name
+    port       = 5432
+    network    = google_compute_network.wiki_js_vpc.name
+    note       = "Database accessible only via private network. Credentials in Secret Manager."
   }
 }
