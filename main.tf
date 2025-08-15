@@ -1,18 +1,16 @@
-║  📊 EMAIL ALERTS CONFIGURED:                                                         ║
-    ║  ✅ CPU > 85% • Memory > 85% • Disk > 85%                                           ║
-    ║  ✅ High Traffic > 100 users/min • Login Activity > 50/min                         ║
-    ║  ✅ Error Rate > 5% • All alerts sent to: ${var.alert_email}                       ║
-    ║                                                                                      ║# =============================================================================
-# Wiki.js on Google Cloud Run - Secure Terraform Deployment
+# =============================================================================
+# Wiki.js on Google Cloud Run - Secure Terraform Deployment with Monitoring
 # Repository: https://github.com/Comeon2022/wikjsisecure.git
-# Version: 1.0.0
-# Last Updated: 2025-08-15
+# Version: 2.0.0
+# Last Updated: 2025-08-16
 # 
 # Features:
 # - Secure credential management with Secret Manager
 # - Automatic random password generation
 # - Complete infrastructure automation
 # - Production-ready security practices
+# - Comprehensive monitoring and analytics dashboard
+# - Email alerts for performance and security events
 # 
 # Usage:
 # 1. git clone https://github.com/Comeon2022/wikjsisecure.git
@@ -20,7 +18,8 @@
 # 3. terraform init
 # 4. terraform apply
 # 5. Enter your GCP project ID when prompted
-# 6. Everything else is automated!
+# 6. Enter your email address for alerts
+# 7. Everything else is automated!
 # =============================================================================
 
 # Variables
@@ -100,7 +99,9 @@ resource "google_project_service" "required_apis" {
     "logging.googleapis.com",
     "secretmanager.googleapis.com",  # 🔐 Secret Manager API
     "vpcaccess.googleapis.com",      # 🌐 VPC Access for private networking
-    "servicenetworking.googleapis.com" # 🔗 Service Networking for Cloud SQL
+    "servicenetworking.googleapis.com", # 🔗 Service Networking for Cloud SQL
+    "monitoring.googleapis.com",     # 📊 Cloud Monitoring
+    "bigquery.googleapis.com"        # 📈 BigQuery for log analytics
   ])
   
   project = var.project_id
@@ -625,173 +626,12 @@ resource "google_cloud_run_service_iam_member" "public_access" {
 }
 
 # =============================================================================
-# OUTPUTS
+# STEP 11: MONITORING AND ANALYTICS CONFIGURATION
 # =============================================================================
-
-# =============================================================================
-# OUTPUTS
-# =============================================================================
-
-output "deployment_summary" {
-  description = "🎉 Deployment Summary"
-  value = {
-    "✅ Status"                = "Wiki.js deployment completed successfully!"
-    "🌐 Wiki.js URL"          = google_cloud_run_v2_service.wiki_js.uri
-    "🗄️ Database"            = "${google_sql_database_instance.wiki_postgres.name} (Private IP Only)"
-    "📦 Image Registry"       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}"
-    "🔐 Service Account"      = google_service_account.wiki_js_sa.email
-    "🛡️ Security"            = "Private network + Secret Manager + SSL required"
-    "🌐 VPC Connector"        = google_vpc_access_connector.wiki_js_connector.name
-    "🗃️ Build Method"        = "Docker pull and push via null_resource"
-  }
-}
-
-# =============================================================================
-# 🎯 QUICK ACCESS LINKS
-# =============================================================================
-
-output "quick_access" {
-  description = "🚀 Your Wiki.js is Ready!"
-  value = <<-EOT
-    
-    ╔══════════════════════════════════════════════════════════════════════════════════════╗
-    ║                          🎉 WIKI.JS DEPLOYMENT COMPLETE! 🎉                         ║
-    ╠══════════════════════════════════════════════════════════════════════════════════════╣
-    ║                                                                                      ║
-    ║  🌐 ACCESS YOUR WIKI:                                                                ║
-    ║  ${google_cloud_run_v2_service.wiki_js.uri}                                         ║
-    ║                                                                                      ║
-    ║  📊 MONITORING DASHBOARD:                                                            ║
-    ║  https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}                             ║
-    ║                                                                                      ║
-    ║  **Click on "🔐 Wiki.js Complete Analytics Dashboard" to view your metrics**        ║
-    ║                                                                                      ║
-    ║  🔐 FEATURES DEPLOYED:                                                               ║
-    ║  ✅ Private PostgreSQL Database                                                      ║
-    ║  ✅ Secret Manager Integration                                                       ║
-    ║  ✅ VPC Private Networking                                                           ║
-    ║  ✅ Real-time Analytics Dashboard                                                    ║
-    ║  ✅ Automated Alerts & Monitoring                                                    ║
-    ║  ✅ BigQuery Log Analytics                                                           ║
-    ║                                                                                      ║
-    ╚══════════════════════════════════════════════════════════════════════════════════════╝
-    
-  EOT
-}
-
-output "wiki_js_url" {
-  description = "🌐 Your Wiki.js Application URL"
-  value       = google_cloud_run_v2_service.wiki_js.uri
-}
-
-output "dashboard_url" {
-  description = "📊 Monitoring Dashboards Portal"
-  value       = "https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}"
-}
-
-output "alert_info" {
-  description = "🚨 Email Alert Configuration"
-  value = {
-    "📧 Alert Email"              = var.alert_email
-    "🚨 CPU Alert Threshold"      = "85%"
-    "💾 Memory Alert Threshold"   = "85%"
-    "💽 Disk Alert Threshold"     = "85%"
-    "👥 User Traffic Threshold"   = "100 users/minute"
-    "🔑 Login Activity Threshold" = "50 logins/minute"
-    "❌ Error Rate Threshold"     = "5%"
-    "📊 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
-  }
-}
-
-output "security_info" {
-  description = "🔐 Security Information"
-  value = {
-    "🔐 Database Username Secret" = google_secret_manager_secret.db_username.name
-    "🔐 Database Password Secret" = google_secret_manager_secret.db_password.name
-    "🛡️ Secret Manager Console"  = "https://console.cloud.google.com/security/secret-manager?project=${var.project_id}"
-  }
-}
-
-output "next_steps" {
-  description = "📋 What to do next"
-  value = <<-EOT
-    
-    ╔══════════════════════════════════════════════════════════════════════════════════════╗
-    ║                     🎯 SECURE DEPLOYMENT WITH MONITORING COMPLETED! 🎯              ║
-    ╠══════════════════════════════════════════════════════════════════════════════════════╣
-    ║                                                                                      ║
-    ║  📝 NEXT STEPS:                                                                      ║
-    ║  1. Visit your Wiki.js URL above                                                    ║
-    ║  2. Complete the initial setup wizard                                               ║
-    ║  3. Create your admin account                                                       ║
-    ║  4. Check your monitoring dashboard                                                  ║
-    ║  5. Start building your wiki!                                                       ║
-    ║                                                                                      ║
-    ║  🔐 SECURITY FEATURES:                                                               ║
-    ║  • Database credentials securely stored in Secret Manager                           ║
-    ║  • Random 32-character password automatically generated                             ║
-    ║  • Private database network (no public IP)                                          ║
-    ║  • VPC Access Connector for secure Cloud Run ↔ Database communication              ║
-    ║  • Service accounts follow least privilege principles                               ║
-    ║  • All sensitive data encrypted at rest                                             ║
-    ║                                                                                      ║
-    ║  📊 MONITORING FEATURES:                                                             ║
-    ║  • Real-time analytics dashboard with page views and user tracking                  ║
-    ║  • Cloud Run CPU, memory, and performance monitoring                                ║
-    ║  • PostgreSQL database performance tracking                                         ║
-    ║  • Automated alerts for errors and resource usage                                   ║
-    ║  • BigQuery integration for advanced log analytics                                  ║
-    ║  • Custom log-based metrics for visitor and usage analytics                         ║
-    ║                                                                                      ║
-    ║  💡 MANAGEMENT TIPS:                                                                 ║
-    ║  • Database credentials are never visible in logs or Terraform state               ║
-    ║  • Rotate secrets periodically via Secret Manager console                           ║
-    ║  • Monitor access and performance via the custom dashboard                          ║
-    ║  • Use BigQuery for advanced analytics and reporting                                ║
-    ║                                                                                      ║
-    ║  🚀 Happy secure wiki-ing with enterprise monitoring! 📊                           ║
-    ║                                                                                      ║
-    ╚══════════════════════════════════════════════════════════════════════════════════════╝
-    
-  EOT
-}
-
-# Database connection (completely private now)
-output "database_info" {
-  description = "Database connection details (private network only)"
-  value = {
-    private_ip = google_sql_database_instance.wiki_postgres.private_ip_address
-    database   = google_sql_database.wiki_database.name
-    port       = 5432
-    network    = google_compute_network.wiki_js_vpc.name
-    note       = "Database accessible only via private network. Credentials in Secret Manager."
-  }
-}
-
-# =============================================================================
-# MONITORING AND ANALYTICS CONFIGURATION
-# =============================================================================
-
-# Enable monitoring APIs
-resource "google_project_service" "monitoring_apis" {
-  for_each = toset([
-    "monitoring.googleapis.com",
-    "bigquery.googleapis.com",
-    "cloudasset.googleapis.com"
-  ])
-  
-  project = var.project_id
-  service = each.value
-  
-  disable_on_destroy         = false
-  disable_dependent_services = false
-  
-  depends_on = [google_project_service.required_apis]
-}
 
 # Wait for monitoring APIs to be ready
 resource "time_sleep" "wait_for_monitoring_apis" {
-  depends_on      = [google_project_service.monitoring_apis]
+  depends_on      = [google_project_service.required_apis]
   create_duration = "60s"
 }
 
@@ -941,10 +781,6 @@ resource "google_project_iam_member" "log_sink_bigquery" {
 }
 
 # =============================================================================
-# ALERTING POLICIES
-# =============================================================================
-
-# =============================================================================
 # NOTIFICATION CHANNELS FOR EMAIL ALERTS
 # =============================================================================
 
@@ -968,7 +804,7 @@ resource "google_monitoring_notification_channel" "email_alerts" {
 
 # High error rate alert
 resource "google_monitoring_alert_policy" "high_error_rate" {
-  display_name = "Wiki.js High Error Rate"
+  display_name = "Wiki.js High Error Rate (>5%)"
   combiner     = "OR"
   enabled      = true
   
@@ -1623,6 +1459,86 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
   ]
 }
 
+# =============================================================================
+# OUTPUTS
+# =============================================================================
+
+output "deployment_summary" {
+  description = "🎉 Deployment Summary"
+  value = {
+    "✅ Status"                = "Wiki.js deployment completed successfully!"
+    "🌐 Wiki.js URL"          = google_cloud_run_v2_service.wiki_js.uri
+    "🗄️ Database"            = "${google_sql_database_instance.wiki_postgres.name} (Private IP Only)"
+    "📦 Image Registry"       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}"
+    "🔐 Service Account"      = google_service_account.wiki_js_sa.email
+    "🛡️ Security"            = "Private network + Secret Manager + SSL required"
+    "🌐 VPC Connector"        = google_vpc_access_connector.wiki_js_connector.name
+    "🗃️ Build Method"        = "Docker pull and push via null_resource"
+  }
+}
+
+# =============================================================================
+# 🎯 QUICK ACCESS LINKS
+# =============================================================================
+
+output "quick_access" {
+  description = "🚀 Your Wiki.js is Ready!"
+  value = <<-EOT
+    
+    ╔══════════════════════════════════════════════════════════════════════════════════════╗
+    ║                          🎉 WIKI.JS DEPLOYMENT COMPLETE! 🎉                         ║
+    ╠══════════════════════════════════════════════════════════════════════════════════════╣
+    ║                                                                                      ║
+    ║  🌐 ACCESS YOUR WIKI:                                                                ║
+    ║  ${google_cloud_run_v2_service.wiki_js.uri}                                         ║
+    ║                                                                                      ║
+    ║  📊 MONITORING DASHBOARD:                                                            ║
+    ║  https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}   ║
+    ║                                                                                      ║
+    ║  **Click on "🔐 Wiki.js Complete Analytics Dashboard" to view your metrics**        ║
+    ║                                                                                      ║
+    ║  🚨 EMAIL ALERTS CONFIGURED:                                                         ║
+    ║  ✅ CPU > 85% • Memory > 85% • Disk > 85%                                           ║
+    ║  ✅ High Traffic > 100 users/min • Login Activity > 50/min                         ║
+    ║  ✅ Error Rate > 5% • All alerts sent to: ${var.alert_email}                       ║
+    ║                                                                                      ║
+    ║  🔐 FEATURES DEPLOYED:                                                               ║
+    ║  ✅ Private PostgreSQL Database                                                      ║
+    ║  ✅ Secret Manager Integration                                                       ║
+    ║  ✅ VPC Private Networking                                                           ║
+    ║  ✅ Real-time Analytics Dashboard                                                    ║
+    ║  ✅ Automated Alerts & Monitoring                                                    ║
+    ║  ✅ BigQuery Log Analytics                                                           ║
+    ║                                                                                      ║
+    ╚══════════════════════════════════════════════════════════════════════════════════════╝
+    
+  EOT
+}
+
+output "wiki_js_url" {
+  description = "🌐 Your Wiki.js Application URL"
+  value       = google_cloud_run_v2_service.wiki_js.uri
+}
+
+output "dashboard_url" {
+  description = "📊 Monitoring Dashboards Portal"
+  value       = "https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}"
+}
+
+output "alert_info" {
+  description = "🚨 Email Alert Configuration"
+  value = {
+    "📧 Alert Email"              = var.alert_email
+    "🚨 CPU Alert Threshold"      = "85%"
+    "💾 Memory Alert Threshold"   = "85%"
+    "💽 Disk Alert Threshold"     = "85%"
+    "👥 User Traffic Threshold"   = "100 users/minute"
+    "🔑 Login Activity Threshold" = "50 logins/minute"
+    "❌ Error Rate Threshold"     = "5%"
+    "📊 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
+  }
+}
+
 # Monitoring and analytics outputs
 output "monitoring_info" {
   description = "📊 Monitoring and Analytics Information"
@@ -1634,5 +1550,70 @@ output "monitoring_info" {
     "🔐 Secret Manager"           = "https://console.cloud.google.com/security/secret-manager?project=${var.project_id}"
     "📋 Log-based Metrics"        = "Custom metrics: wiki_page_views, wiki_user_sessions, wiki_errors, slow_requests"
     "🎯 DASHBOARD NAME"           = "🔐 Wiki.js Complete Analytics Dashboard"
+  }
+}
+
+output "security_info" {
+  description = "🔐 Security Information"
+  value = {
+    "🔐 Database Username Secret" = google_secret_manager_secret.db_username.name
+    "🔐 Database Password Secret" = google_secret_manager_secret.db_password.name
+    "🛡️ Secret Manager Console"  = "https://console.cloud.google.com/security/secret-manager?project=${var.project_id}"
+  }
+}
+
+output "next_steps" {
+  description = "📋 What to do next"
+  value = <<-EOT
+    
+    ╔══════════════════════════════════════════════════════════════════════════════════════╗
+    ║                     🎯 SECURE DEPLOYMENT WITH MONITORING COMPLETED! 🎯              ║
+    ╠══════════════════════════════════════════════════════════════════════════════════════╣
+    ║                                                                                      ║
+    ║  📝 NEXT STEPS:                                                                      ║
+    ║  1. Visit your Wiki.js URL above                                                    ║
+    ║  2. Complete the initial setup wizard                                               ║
+    ║  3. Create your admin account                                                       ║
+    ║  4. Check your monitoring dashboard                                                  ║
+    ║  5. Start building your wiki!                                                       ║
+    ║                                                                                      ║
+    ║  🔐 SECURITY FEATURES:                                                               ║
+    ║  • Database credentials securely stored in Secret Manager                           ║
+    ║  • Random 32-character password automatically generated                             ║
+    ║  • Private database network (no public IP)                                          ║
+    ║  • VPC Access Connector for secure Cloud Run ↔ Database communication              ║
+    ║  • Service accounts follow least privilege principles                               ║
+    ║  • All sensitive data encrypted at rest                                             ║
+    ║                                                                                      ║
+    ║  📊 MONITORING FEATURES:                                                             ║
+    ║  • Real-time analytics dashboard with page views and user tracking                  ║
+    ║  • Cloud Run CPU, memory, and performance monitoring                                ║
+    ║  • PostgreSQL database performance tracking                                         ║
+    ║  • Automated alerts for errors and resource usage                                   ║
+    ║  • BigQuery integration for advanced log analytics                                  ║
+    ║  • Custom log-based metrics for visitor and usage analytics                         ║
+    ║                                                                                      ║
+    ║  💡 MANAGEMENT TIPS:                                                                 ║
+    ║  • Database credentials are never visible in logs or Terraform state               ║
+    ║  • Rotate secrets periodically via Secret Manager console                           ║
+    ║  • Monitor access and performance via the custom dashboard                          ║
+    ║  • Use BigQuery for advanced analytics and reporting                                ║
+    ║                                                                                      ║
+    ║  🚀 Happy secure wiki-ing with enterprise monitoring! 📊                           ║
+    ║                                                                                      ║
+    ╚══════════════════════════════════════════════════════════════════════════════════════╝
+    
+  EOT
+}
+
+# Database connection (completely private now)
+output "database_info" {
+  description = "Database connection details (private network only)"
+  value = {
+    private_ip = google_sql_database_instance.wiki_postgres.private_ip_address
+    database   = google_sql_database.wiki_database.name
+    port       = 5432
+    network    = google_compute_network.wiki_js_vpc.name
+    note       = "Database accessible only via private network. Credentials in Secret Manager."
   }
 }
