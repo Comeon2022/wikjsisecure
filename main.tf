@@ -888,7 +888,7 @@ resource "google_monitoring_alert_policy" "high_memory_usage" {
       
       aggregations {
         alignment_period     = "300s"
-        per_series_aligner   = "ALIGN_MEAN"
+        per_series_aligner   = "ALIGN_DELTA"
         cross_series_reducer = "REDUCE_MEAN"
         group_by_fields      = ["resource.label.service_name"]
       }
