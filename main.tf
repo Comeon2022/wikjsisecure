@@ -649,7 +649,7 @@ output "quick_access" {
     ║  ${google_cloud_run_v2_service.wiki_js.uri}                                         ║
     ║                                                                                      ║
     ║  📊 MONITORING DASHBOARD:                                                            ║
-    ║  https://console.cloud.google.com/monitoring/dashboards/custom/${replace(google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id, "projects/${var.project_id}/dashboards/", "")}?project=${var.project_id}  ║
+    ║  https://console.cloud.google.com/monitoring/dashboards/builder/${replace(google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id, "projects/${var.project_id}/dashboards/", "")}?project=${var.project_id}    ║
     ║                                                                                      ║
     ║  🔐 FEATURES DEPLOYED:                                                               ║
     ║  ✅ Private PostgreSQL Database                                                      ║
@@ -671,7 +671,7 @@ output "wiki_js_url" {
 
 output "dashboard_url" {
   description = "📊 Your Custom Monitoring Dashboard"
-  value       = "https://console.cloud.google.com/monitoring/dashboards/custom/${replace(google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id, "projects/${var.project_id}/dashboards/", "")}?project=${var.project_id}"
+  value       = "https://console.cloud.google.com/monitoring/dashboards/builder/${replace(google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id, "projects/${var.project_id}/dashboards/", "")}?project=${var.project_id}"
 }
 
 output "security_info" {
@@ -1410,7 +1410,7 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
 output "monitoring_info" {
   description = "📊 Monitoring and Analytics Information"
   value = {
-    "📊 CUSTOM DASHBOARD"         = "https://console.cloud.google.com/monitoring/dashboards/custom/${replace(google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id, "projects/${var.project_id}/dashboards/", "")}?project=${var.project_id}"
+    "📊 CUSTOM DASHBOARD"         = "https://console.cloud.google.com/monitoring/dashboards/builder/${replace(google_monitoring_dashboard.wiki_js_comprehensive_dashboard.id, "projects/${var.project_id}/dashboards/", "")}?project=${var.project_id}"
     "🔍 Logs Explorer"            = "https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20AND%20resource.labels.service_name%3D%22wiki-js%22?project=${var.project_id}"
     "📈 BigQuery Dataset"         = "https://console.cloud.google.com/bigquery?project=${var.project_id}&ws=!1m4!1m3!3m2!1s${var.project_id}!2s${google_bigquery_dataset.wiki_logs_dataset.dataset_id}"
     "🚨 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
