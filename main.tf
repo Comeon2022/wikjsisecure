@@ -1463,103 +1463,14 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
 # OUTPUTS
 # =============================================================================
 
-output "deployment_summary" {
-  description = "🎉 Deployment Summary"
-  value = {
-    "✅ Status"                = "Wiki.js deployment completed successfully!"
-    "🌐 Wiki.js URL"          = google_cloud_run_v2_service.wiki_js.uri
-    "🗄️ Database"            = "${google_sql_database_instance.wiki_postgres.name} (Private IP Only)"
-    "📦 Image Registry"       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}"
-    "🔐 Service Account"      = google_service_account.wiki_js_sa.email
-    "🛡️ Security"            = "Private network + Secret Manager + SSL required"
-    "🌐 VPC Connector"        = google_vpc_access_connector.wiki_js_connector.name
-    "🗃️ Build Method"        = "Docker pull and push via null_resource"
-  }
-}
-
-# =============================================================================
-# 🎯 QUICK ACCESS LINKS
-# =============================================================================
-
-output "quick_access" {
-  description = "🚀 Your Wiki.js is Ready!"
-  value = <<-EOT
-    
-    ╔══════════════════════════════════════════════════════════════════════════════════════╗
-    ║                          🎉 WIKI.JS DEPLOYMENT COMPLETE! 🎉                         ║
-    ╠══════════════════════════════════════════════════════════════════════════════════════╣
-    ║                                                                                      ║
-    ║  🌐 ACCESS YOUR WIKI:                                                                ║
-    ║  ${google_cloud_run_v2_service.wiki_js.uri}                                         ║
-    ║                                                                                      ║
-    ║  📊 MONITORING DASHBOARD:                                                            ║
-    ║  https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}   ║
-    ║                                                                                      ║
-    ║  **Click on "🔐 Wiki.js Complete Analytics Dashboard" to view your metrics**        ║
-    ║                                                                                      ║
-    ║  🚨 EMAIL ALERTS CONFIGURED:                                                         ║
-    ║  ✅ CPU > 85% • Memory > 85% • Disk > 85%                                           ║
-    ║  ✅ High Traffic > 100 users/min • Login Activity > 50/min                         ║
-    ║  ✅ Error Rate > 5% • All alerts sent to: ${var.alert_email}                       ║
-    ║                                                                                      ║
-    ║  🔐 FEATURES DEPLOYED:                                                               ║
-    ║  ✅ Private PostgreSQL Database                                                      ║
-    ║  ✅ Secret Manager Integration                                                       ║
-    ║  ✅ VPC Private Networking                                                           ║
-    ║  ✅ Real-time Analytics Dashboard                                                    ║
-    ║  ✅ Automated Alerts & Monitoring                                                    ║
-    ║  ✅ BigQuery Log Analytics                                                           ║
-    ║                                                                                      ║
-    ╚══════════════════════════════════════════════════════════════════════════════════════╝
-    
-  EOT
-}
-
 output "wiki_js_url" {
-  description = "🌐 Your Wiki.js Application URL"
+  description = "🌐 ACCESS YOUR WIKI"
   value       = google_cloud_run_v2_service.wiki_js.uri
 }
 
 output "dashboard_url" {
-  description = "📊 Monitoring Dashboards Portal"
+  description = "📊 MONITORING DASHBOARD"
   value       = "https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}"
-}
-
-output "alert_info" {
-  description = "🚨 Email Alert Configuration"
-  value = {
-    "📧 Alert Email"              = var.alert_email
-    "🚨 CPU Alert Threshold"      = "85%"
-    "💾 Memory Alert Threshold"   = "85%"
-    "💽 Disk Alert Threshold"     = "85%"
-    "👥 User Traffic Threshold"   = "100 users/minute"
-    "🔑 Login Activity Threshold" = "50 logins/minute"
-    "❌ Error Rate Threshold"     = "5%"
-    "📊 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
-  }
-}
-
-# Monitoring and analytics outputs
-output "monitoring_info" {
-  description = "📊 Monitoring and Analytics Information"
-  value = {
-    "📊 DASHBOARD PORTAL"         = "https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}"
-    "🔍 Logs Explorer"            = "https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20AND%20resource.labels.service_name%3D%22wiki-js%22?project=${var.project_id}"
-    "📈 BigQuery Dataset"         = "https://console.cloud.google.com/bigquery?project=${var.project_id}&ws=!1m4!1m3!3m2!1s${var.project_id}!2s${google_bigquery_dataset.wiki_logs_dataset.dataset_id}"
-    "🚨 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
-    "🔐 Secret Manager"           = "https://console.cloud.google.com/security/secret-manager?project=${var.project_id}"
-    "📋 Log-based Metrics"        = "Custom metrics: wiki_page_views, wiki_user_sessions, wiki_errors, slow_requests"
-    "🎯 DASHBOARD NAME"           = "🔐 Wiki.js Complete Analytics Dashboard"
-  }
-}
-
-output "security_info" {
-  description = "🔐 Security Information"
-  value = {
-    "🔐 Database Username Secret" = google_secret_manager_secret.db_username.name
-    "🔐 Database Password Secret" = google_secret_manager_secret.db_password.name
-    "🛡️ Secret Manager Console"  = "https://console.cloud.google.com/security/secret-manager?project=${var.project_id}"
-  }
 }
 
 output "next_steps" {
