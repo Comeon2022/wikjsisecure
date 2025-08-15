@@ -99,8 +99,9 @@ terraform plan
 # Deploy the complete solution with monitoring
 terraform apply
 
-# When prompted, enter your GCP Project ID
-# Example: my-gcp-project-123456
+# When prompted, enter:
+# 1. Your GCP Project ID (e.g., my-gcp-project-123456)
+# 2. Your email address for alerts (e.g., admin@company.com)
 ```
 
 ### Step 5: Access Your Wiki & Dashboard
@@ -170,15 +171,17 @@ gcloud compute networks vpc-access connectors list --region=us-central1
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `project_id` | GCP Project ID | - | ✅ Yes |
+| `alert_email` | Email for monitoring alerts | - | ✅ Yes |
 | `region` | GCP Region for resources | `us-central1` | No |
 | `zone` | GCP Zone for resources | `us-central1-a` | No |
 
 ### Custom Configuration Example
 ```hcl
 # terraform.tfvars
-project_id = "my-production-project"
-region     = "europe-west1"
-zone       = "europe-west1-b"
+project_id  = "my-production-project"
+alert_email = "admin@company.com"
+region      = "europe-west1"
+zone        = "europe-west1-b"
 ```
 
 ## 📊 What Gets Created

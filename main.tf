@@ -1,4 +1,8 @@
-# =============================================================================
+║  📊 EMAIL ALERTS CONFIGURED:                                                         ║
+    ║  ✅ CPU > 85% • Memory > 85% • Disk > 85%                                           ║
+    ║  ✅ High Traffic > 100 users/min • Login Activity > 50/min                         ║
+    ║  ✅ Error Rate > 5% • All alerts sent to: ${var.alert_email}                       ║
+    ║                                                                                      ║# =============================================================================
 # Wiki.js on Google Cloud Run - Secure Terraform Deployment
 # Repository: https://github.com/Comeon2022/wikjsisecure.git
 # Version: 1.0.0
@@ -26,6 +30,15 @@ variable "project_id" {
   validation {
     condition     = length(var.project_id) > 0
     error_message = "Project ID cannot be empty."
+  }
+}
+
+variable "alert_email" {
+  description = "Email address to receive monitoring alerts"
+  type        = string
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.alert_email))
+    error_message = "Please enter a valid email address for alerts."
   }
 }
 
@@ -649,7 +662,7 @@ output "quick_access" {
     ║  ${google_cloud_run_v2_service.wiki_js.uri}                                         ║
     ║                                                                                      ║
     ║  📊 MONITORING DASHBOARD:                                                            ║
-    ║  https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}                           ║
+    ║  https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}                             ║
     ║                                                                                      ║
     ║  **Click on "🔐 Wiki.js Complete Analytics Dashboard" to view your metrics**        ║
     ║                                                                                      ║
@@ -674,6 +687,20 @@ output "wiki_js_url" {
 output "dashboard_url" {
   description = "📊 Monitoring Dashboards Portal"
   value       = "https://console.cloud.google.com/monitoring/dashboards?project=${var.project_id}"
+}
+
+output "alert_info" {
+  description = "🚨 Email Alert Configuration"
+  value = {
+    "📧 Alert Email"              = var.alert_email
+    "🚨 CPU Alert Threshold"      = "85%"
+    "💾 Memory Alert Threshold"   = "85%"
+    "💽 Disk Alert Threshold"     = "85%"
+    "👥 User Traffic Threshold"   = "100 users/minute"
+    "🔑 Login Activity Threshold" = "50 logins/minute"
+    "❌ Error Rate Threshold"     = "5%"
+    "📊 Alert Policies"           = "https://console.cloud.google.com/monitoring/alerting?project=${var.project_id}"
+  }
 }
 
 output "security_info" {
@@ -917,6 +944,28 @@ resource "google_project_iam_member" "log_sink_bigquery" {
 # ALERTING POLICIES
 # =============================================================================
 
+# =============================================================================
+# NOTIFICATION CHANNELS FOR EMAIL ALERTS
+# =============================================================================
+
+# Email notification channel
+resource "google_monitoring_notification_channel" "email_alerts" {
+  display_name = "Wiki.js Admin Email Alerts"
+  type         = "email"
+  
+  labels = {
+    email_address = var.alert_email
+  }
+  
+  enabled = true
+
+  depends_on = [time_sleep.wait_for_monitoring_apis]
+}
+
+# =============================================================================
+# ALERTING POLICIES WITH EMAIL NOTIFICATIONS
+# =============================================================================
+
 # High error rate alert
 resource "google_monitoring_alert_policy" "high_error_rate" {
   display_name = "Wiki.js High Error Rate"
@@ -941,28 +990,31 @@ resource "google_monitoring_alert_policy" "high_error_rate" {
     }
   }
   
-  notification_channels = []
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
   
   alert_strategy {
     auto_close = "1800s"
   }
 
-  depends_on = [time_sleep.wait_for_monitoring_apis]
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_monitoring_notification_channel.email_alerts
+  ]
 }
 
-# High CPU usage alert for Cloud Run
+# High CPU usage alert for Cloud Run (85%)
 resource "google_monitoring_alert_policy" "high_cpu_usage" {
-  display_name = "Wiki.js High CPU Usage"
+  display_name = "Wiki.js High CPU Usage (>85%)"
   combiner     = "OR"
   enabled      = true
   
   conditions {
-    display_name = "CPU utilization > 80%"
+    display_name = "CPU utilization > 85%"
     
     condition_threshold {
       filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/cpu/utilizations\""
       comparison      = "COMPARISON_GT"
-      threshold_value = 0.8
+      threshold_value = 0.85
       duration        = "300s"
       
       aggregations {
@@ -974,27 +1026,61 @@ resource "google_monitoring_alert_policy" "high_cpu_usage" {
     }
   }
   
-  notification_channels = []
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
 
   depends_on = [
     time_sleep.wait_for_monitoring_apis,
-    google_cloud_run_v2_service.wiki_js
+    google_cloud_run_v2_service.wiki_js,
+    google_monitoring_notification_channel.email_alerts
   ]
 }
 
-# Database high CPU alert
-resource "google_monitoring_alert_policy" "database_high_cpu" {
-  display_name = "PostgreSQL High CPU Usage"
+# High Memory usage alert for Cloud Run (85%)
+resource "google_monitoring_alert_policy" "high_memory_usage" {
+  display_name = "Wiki.js High Memory Usage (>85%)"
   combiner     = "OR"
   enabled      = true
   
   conditions {
-    display_name = "Database CPU > 80%"
+    display_name = "Memory utilization > 85%"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/container/memory/utilizations\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.85
+      duration        = "300s"
+      
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MEAN"
+        group_by_fields      = ["resource.label.service_name"]
+      }
+    }
+  }
+  
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
+
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js,
+    google_monitoring_notification_channel.email_alerts
+  ]
+}
+
+# Database high CPU alert (85%)
+resource "google_monitoring_alert_policy" "database_high_cpu" {
+  display_name = "PostgreSQL High CPU Usage (>85%)"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "Database CPU > 85%"
     
     condition_threshold {
       filter          = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
       comparison      = "COMPARISON_GT"
-      threshold_value = 0.8
+      threshold_value = 0.85
       duration        = "300s"
       
       aggregations {
@@ -1005,11 +1091,140 @@ resource "google_monitoring_alert_policy" "database_high_cpu" {
     }
   }
   
-  notification_channels = []
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
 
   depends_on = [
     time_sleep.wait_for_monitoring_apis,
-    time_sleep.wait_for_sql_instance
+    time_sleep.wait_for_sql_instance,
+    google_monitoring_notification_channel.email_alerts
+  ]
+}
+
+# Database high memory alert (85%)
+resource "google_monitoring_alert_policy" "database_high_memory" {
+  display_name = "PostgreSQL High Memory Usage (>85%)"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "Database Memory > 85%"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/memory/utilization\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.85
+      duration        = "300s"
+      
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MEAN"
+      }
+    }
+  }
+  
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
+
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    time_sleep.wait_for_sql_instance,
+    google_monitoring_notification_channel.email_alerts
+  ]
+}
+
+# Database disk usage alert (85%)
+resource "google_monitoring_alert_policy" "database_high_disk" {
+  display_name = "PostgreSQL High Disk Usage (>85%)"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "Database Disk > 85%"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloudsql_database\" AND resource.label.database_id=\"${google_sql_database_instance.wiki_postgres.name}\" AND metric.type=\"cloudsql.googleapis.com/database/disk/utilization\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.85
+      duration        = "300s"
+      
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_MEAN"
+      }
+    }
+  }
+  
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
+
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    time_sleep.wait_for_sql_instance,
+    google_monitoring_notification_channel.email_alerts
+  ]
+}
+
+# High concurrent users alert (>100 users in 1 minute)
+resource "google_monitoring_alert_policy" "high_concurrent_users" {
+  display_name = "Wiki.js High Concurrent Users (>100/min)"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "Concurrent users > 100 in 1 minute"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"run.googleapis.com/request_count\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 100
+      duration        = "60s"
+      
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_RATE"
+        cross_series_reducer = "REDUCE_SUM"
+        group_by_fields      = ["resource.label.service_name"]
+      }
+    }
+  }
+  
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
+
+  depends_on = [
+    time_sleep.wait_for_monitoring_apis,
+    google_cloud_run_v2_service.wiki_js,
+    google_monitoring_notification_channel.email_alerts
+  ]
+}
+
+# High login activity alert (>50 logins in 1 minute)
+resource "google_monitoring_alert_policy" "high_login_activity" {
+  display_name = "Wiki.js High Login Activity (>50/min)"
+  combiner     = "OR"
+  enabled      = true
+  
+  conditions {
+    display_name = "User logins > 50 in 1 minute"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_user_sessions.name}\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 50
+      duration        = "60s"
+      
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_RATE"
+        cross_series_reducer = "REDUCE_SUM"
+      }
+    }
+  }
+  
+  notification_channels = [google_monitoring_notification_channel.email_alerts.name]
+
+  depends_on = [
+    google_logging_metric.wiki_user_sessions,
+    google_monitoring_notification_channel.email_alerts
   ]
 }
 
