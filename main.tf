@@ -978,19 +978,24 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
           height = 4
           widget = {
             title = "📊 Page Views (Last 24h)"
-            scorecard = {
-              timeSeriesQuery = {
-                timeSeriesFilter = {
-                  filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_page_views.name}\""
-                  aggregation = {
-                    alignmentPeriod    = "3600s"
-                    perSeriesAligner   = "ALIGN_RATE"
-                    crossSeriesReducer = "REDUCE_SUM"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_page_views.name}\""
+                    aggregation = {
+                      alignmentPeriod    = "3600s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_SUM"
+                    }
                   }
                 }
-              }
-              sparkChartView = {
-                sparkChartType = "SPARK_LINE"
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Page Views/hour"
+                scale = "LINEAR"
               }
             }
           }
@@ -1002,19 +1007,24 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
           xPos = 6
           widget = {
             title = "👥 User Sessions (Last 24h)"
-            scorecard = {
-              timeSeriesQuery = {
-                timeSeriesFilter = {
-                  filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_user_sessions.name}\""
-                  aggregation = {
-                    alignmentPeriod    = "3600s"
-                    perSeriesAligner   = "ALIGN_RATE"
-                    crossSeriesReducer = "REDUCE_SUM"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_user_sessions.name}\""
+                    aggregation = {
+                      alignmentPeriod    = "3600s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_SUM"
+                    }
                   }
                 }
-              }
-              sparkChartView = {
-                sparkChartType = "SPARK_BAR"
+                plotType = "STACKED_BAR"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "User Sessions/hour"
+                scale = "LINEAR"
               }
             }
           }
@@ -1208,19 +1218,24 @@ resource "google_monitoring_dashboard" "wiki_js_comprehensive_dashboard" {
           xPos = 8
           widget = {
             title = "❌ Error Rate"
-            scorecard = {
-              timeSeriesQuery = {
-                timeSeriesFilter = {
-                  filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_errors.name}\""
-                  aggregation = {
-                    alignmentPeriod    = "300s"
-                    perSeriesAligner   = "ALIGN_RATE"
-                    crossSeriesReducer = "REDUCE_SUM"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloud_run_revision\" AND resource.label.service_name=\"wiki-js\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.wiki_errors.name}\""
+                    aggregation = {
+                      alignmentPeriod    = "300s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_SUM"
+                    }
                   }
                 }
-              }
-              sparkChartView = {
-                sparkChartType = "SPARK_LINE"
+                plotType = "LINE"
+                targetAxis = "Y1"
+              }]
+              yAxis = {
+                label = "Errors/sec"
+                scale = "LINEAR"
               }
             }
           }
