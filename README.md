@@ -1,354 +1,313 @@
-# 🔐 Secure Wiki.js on Google Cloud Run
+# 🏢 Enterprise Wiki.js Knowledge Management Platform
 
-![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white) ![Google Cloud](https://img.shields.io/badge/GoogleCloud-%234285F4.svg?style=for-the-badge&logo=google-cloud&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Security](https://img.shields.io/badge/Security-Secret_Manager-red?style=for-the-badge)
+![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white) ![Google Cloud](https://img.shields.io/badge/GoogleCloud-%234285F4.svg?style=for-the-badge&logo=google-cloud&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white) ![Security](https://img.shields.io/badge/Security-Enterprise_Grade-red?style=for-the-badge)
 
-A secure Infrastructure as Code (IaC) solution to deploy [Wiki.js](https://wiki.js.org/) on Google Cloud Run with enterprise-grade security using Google Secret Manager and private networking.
-
-## 📋 Solution Overview
-
-This Terraform solution provides a **production-ready, secure deployment** of Wiki.js with:
-
-- **🔐 Private Database**: Cloud SQL PostgreSQL with private IP only (no public access)
-- **🌐 Secure Networking**: VPC with private service connection and VPC Access Connector
-- **🛡️ Secret Management**: Database credentials stored in Google Secret Manager
-- **🔒 Security Best Practices**: Least privilege IAM, encrypted storage, audit logging
-- **⚡ One-Command Deployment**: Fully automated infrastructure provisioning
-
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
 ```
                     🌐 Public Internet
                          │
                          ▼
-              ┌─────────────────┐
-              │   Cloud Run     │
-              │   (Wiki.js)     │ 🌐 Public Access
-              │                 │
-              └─────────┬───────┘
+              ┌─────────────────────────┐
+              │      Load Balancer      │ (Auto-scaling)
+              │    (Cloud Run HTTPS)    │
+              └─────────┬───────────────┘
                         │
                         │ 🔐 VPC Access Connector
                         ▼
-              ┌─────────────────┐
-              │  Private VPC    │
-              │                 │
-              │  ┌───────────┐  │
-              │  │Cloud SQL  │  │ 🔐 Private IP Only
-              │  │(PostgreSQL)│  │ 🔒 No Public Access
-              │  └───────────┘  │
-              └─────────────────┘
-                        ▲
-                        │ 🔐 Secret Manager
-              ┌─────────────────┐
-              │   Credentials   │
-              │   (Encrypted)   │
-              └─────────────────┘
+    ┌─────────────────────────────────────────────────────────┐
+    │                  Private VPC Network                    │
+    │  ┌─────────────────┐              ┌─────────────────┐   │
+    │  │   Cloud Run     │              │   Cloud SQL     │   │
+    │  │   (Wiki.js)     │ ◄────────────┤   (PostgreSQL)  │   │
+    │  │   • Auto-scale  │   Private IP │   • Private IP  │   │
+    │  │   • Container   │              │   • Encrypted   │   │
+    │  └─────────────────┘              └─────────────────┘   │
+    └─────────────────────────────────────────────────────────┘
+              ▲                                    ▲
+              │                                    │
+    ┌─────────────────┐                 ┌─────────────────┐
+    │ Secret Manager  │                 │   Monitoring    │
+    │ • DB Credentials│                 │ • Dashboards    │
+    │ • Auto-rotation │                 │ • Alerts        │
+    │ • Encrypted     │                 │ • BigQuery Logs │
+    └─────────────────┘                 └─────────────────┘
 ```
 
-## 📦 Prerequisites
+## 🔧 Solution Components
 
-Before running this solution, ensure you have the following installed and configured:
+### **Compute** - Google Cloud Run
+- **Auto-scaling**: 0-1000 instances based on demand
+- **Serverless**: Pay only for actual usage
+- **Container-based**: Easy deployment and updates
+- **HTTPS**: Built-in SSL/TLS termination
 
-### Required Tools
-- **[Google Cloud SDK](https://cloud.google.com/sdk/docs/install)** (>= 400.0.0)
-- **[Terraform](https://www.terraform.io/downloads)** (>= 1.0)
-- **[Docker](https://docs.docker.com/get-docker/)** (>= 20.0.0)
-- **Git** for version control
+### **Storage** - Cloud SQL PostgreSQL
+- **Database**: Managed PostgreSQL for Wiki.js data
+- **Private networking**: No public IP exposure
+- **Automated backups**: Point-in-time recovery
+- **High availability**: Optional multi-zone deployment
 
-### Google Cloud Setup
-1. **GCP Project**: An active Google Cloud Project with billing enabled
-2. **Authentication**: Configure application default credentials
-   ```bash
-   gcloud auth application-default login
-   ```
-3. **Docker Authentication**: Configure Docker for Artifact Registry
-   ```bash
-   gcloud auth configure-docker
-   ```
+### **Networking** - Private VPC
+- **Isolation**: Private network with no public database access
+- **VPC Connector**: Secure Cloud Run to database communication
+- **Firewall**: Implicit deny-all with specific allow rules
 
-### Required Permissions
-Your Google Cloud user/service account needs the following roles:
-- `roles/owner` OR the combination of:
-  - `roles/compute.admin`
-  - `roles/cloudsql.admin`
-  - `roles/run.admin`
-  - `roles/secretmanager.admin`
-  - `roles/artifactregistry.admin`
-  - `roles/serviceusage.serviceUsageAdmin`
+### **Scaling** - Automatic
+- **Horizontal scaling**: Cloud Run auto-scales containers
+- **Database scaling**: Vertical scaling available on-demand
+- **CDN ready**: Cloud Run integrates with Google CDN
 
-## 🚀 Setup Instructions
+### **Monitoring** - Comprehensive Observability
+- **Real-time dashboards**: Custom analytics and performance metrics
+- **Email alerts**: Automated notifications for issues
+- **Log analytics**: BigQuery integration for advanced querying
+- **Performance tracking**: CPU, memory, response times, user activity
 
-### Step 1: Clone Repository
+## 🚀 Quick Deployment
+
+### Prerequisites
+- Google Cloud Project with billing enabled
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed
+- [Terraform](https://www.terraform.io/downloads) (>= 1.0) installed
+- [Docker](https://docs.docker.com/get-docker/) installed
+
+### Authentication Setup
 ```bash
+# Authenticate with Google Cloud
+gcloud auth application-default login
+
+# Configure Docker for Artifact Registry
+gcloud auth configure-docker
+```
+
+### One-Command Deployment
+```bash
+# Clone repository
 git clone <your-repository-url>
 cd <repository-name>
-```
 
-### Step 2: Initialize Terraform
-```bash
+# Initialize and deploy
 terraform init
-```
-
-### Step 3: Review Configuration (Optional)
-```bash
-# Review the planned infrastructure changes
-terraform plan
-```
-
-### Step 4: Deploy Complete Infrastructure
-```bash
-# Deploy the complete solution with monitoring
 terraform apply
 
-# When prompted, enter:
-# 1. Your GCP Project ID (e.g., my-gcp-project-123456)
-# 2. Your email address for alerts (e.g., admin@company.com)
+# Enter when prompted:
+# 1. Your GCP Project ID
+# 2. Your email address for monitoring alerts 
 ```
 
-### Step 5: Access Your Wiki & Dashboard
-After successful deployment (approximately 5-10 minutes):
+**Deployment time**: Approximately 30 minutes
 
-1. **Wiki.js**: Access via the URL in the output
-2. **Monitoring Dashboard**: Click the dashboard link in the output
-3. **Logs & Analytics**: Use the provided monitoring links
+**Known Issue**: Wiki.js is crushing after initial setup, just wait to 5 minutes and browse again to the link.  
 
-**🎉 Everything is deployed and monitored with a single command!**
+## 📊 Monitoring and Observability
 
-## 💻 Command Examples
+### Real-time Analytics Dashboard
+- **User Activity**: Page views, sessions, unique visitors
+- **Performance Metrics**: Response times, request volume, error rates
+- **Resource Monitoring**: CPU, memory utilization for both application and database
+- **Security Events**: Login attempts, access patterns, failed authentications
 
-### Basic Operations
-```bash
-# Initialize Terraform
-terraform init
+### Automated Alerting (Email Notifications)
+- **Performance Alerts**: CPU > 85%, Memory > 85%, Disk > 85%
+- **Traffic Alerts**: High concurrent users (>100/min), login activity (>50/min)
+- **Error Alerts**: Error rate > 5%, database connectivity issues
+- **Security Alerts**: Unusual access patterns, failed authentication attempts
 
-# Plan deployment (review changes)
-terraform plan -var="project_id=YOUR_PROJECT_ID"
+### Advanced Analytics
+- **BigQuery Integration**: Store and analyze logs with SQL queries
+- **Custom Metrics**: Track business-specific KPIs
+- **Historical Analysis**: Trend analysis and capacity planning
+- **Compliance Reporting**: Audit trails and access logs
 
-# Apply configuration
-terraform apply -var="project_id=YOUR_PROJECT_ID"
+## 🛡️ Security Implementation
 
-# View outputs
-terraform output
+### Network Security
+- **Private VPC**: Isolated network environment with custom IP ranges
+- **No Public Database**: Cloud SQL accessible only via private network
+- **VPC Access Connector**: Encrypted communication between services
+- **Firewall Rules**: Restrictive ingress/egress policies
 
-# Destroy infrastructure (cleanup)
-terraform destroy
-```
+### Data Protection
+- **Secret Manager**: Database credentials stored encrypted and rotated
+- **Random Password Generation**: 32-character secure passwords
+- **Encryption at Rest**: All data encrypted using Google-managed keys
+- **Encryption in Transit**: TLS 1.3 for all communications
 
-### Advanced Operations
-```bash
-# Format Terraform files
-terraform fmt
+### Access Control
+- **Least Privilege IAM**: Service accounts with minimal required permissions
+- **Authentication**: Wiki.js handles user authentication and authorization
+- **Audit Logging**: All access and configuration changes logged
+- **Secret Access Tracking**: Monitor who accesses sensitive data
 
-# Validate configuration
-terraform validate
+### Compliance Features
+- **Data Residency**: Control where data is stored and processed
+- **Audit Trails**: Complete logging of all system activities
+- **Backup Encryption**: Automated encrypted backups with retention policies
+- **Access Reviews**: Regular permission auditing capabilities
 
-# Show current state
-terraform show
+## 🔄 Scalability Architecture
 
-# Import existing resources (if needed)
-terraform import google_project.my_project YOUR_PROJECT_ID
-```
+### Horizontal Scaling
+- **Auto-scaling**: Cloud Run automatically scales 0-1000 instances
+- **Load Distribution**: Built-in load balancing across instances
+- **Regional Deployment**: Multi-zone availability within region
+- **Global Expansion**: Easy deployment to multiple regions
 
-### Monitoring and Debugging
-```bash
-# Check Cloud Run service status
-gcloud run services list --region=us-central1
+### Vertical Scaling
+- **Database Scaling**: Upgrade Cloud SQL instance types on-demand
+- **Memory Allocation**: Adjust Cloud Run memory limits per instance
+- **Storage Scaling**: Automatic disk size increases
 
-# View Cloud Run logs
-gcloud run services logs read wiki-js --region=us-central1
+### Performance Optimization
+- **Connection Pooling**: Efficient database connection management
+- **Caching**: Built-in Cloud Run caching mechanisms
+- **CDN Integration**: Optional Cloud CDN for static assets
+- **Image Optimization**: Container image size optimization
 
-# Check Cloud SQL instance
-gcloud sql instances list
-
-# View secrets (metadata only)
-gcloud secrets list
-
-# Check VPC Access Connector
-gcloud compute networks vpc-access connectors list --region=us-central1
-```
-
-## 🔧 Configuration Variables
+## 📋 Deployment Variables
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `project_id` | GCP Project ID | - | ✅ Yes |
 | `alert_email` | Email for monitoring alerts | - | ✅ Yes |
-| `region` | GCP Region for resources | `us-central1` | No |
+| `region` | GCP Region for deployment | `us-central1` | No |
 | `zone` | GCP Zone for resources | `us-central1-a` | No |
 
-### Custom Configuration Example
+### Production Configuration Example
 ```hcl
 # terraform.tfvars
-project_id  = "my-production-project"
-alert_email = "admin@company.com"
-region      = "europe-west1"
-zone        = "europe-west1-b"
+project_id  = "company-wiki-prod"
+alert_email = "devops-team@company.com"
+region      = "us-east1"        # Closer to users
+zone        = "us-east1-b"
 ```
 
-## 📊 What Gets Created
+## 🧪 Testing and Validation
 
-| Resource Type | Name | Purpose |
-|---------------|------|---------|
-| **VPC Network** | `wiki-js-vpc` | Private networking foundation |
-| **Subnet** | `wiki-js-subnet` | Network segment for resources |
-| **Private Connection** | `wiki-js-private-ip` | Cloud SQL private peering |
-| **VPC Connector** | `wiki-js-connector` | Cloud Run ↔ VPC bridge |
-| **Cloud SQL** | `wiki-postgres-instance` | PostgreSQL database (private) |
-| **Cloud Run** | `wiki-js` | Wiki.js application |
-| **Secret Manager** | `wiki-js-db-*` | Encrypted credentials |
-| **Service Accounts** | `wiki-js-sa`, `wiki-js-build-sa` | Secure identities |
-| **Artifact Registry** | `wiki-js` | Private container repository |
-| **📊 Monitoring Dashboard** | `wiki-js-dashboard` | **Complete analytics dashboard** |
-| **📈 Log Metrics** | `wiki_page_views`, `wiki_user_sessions`, etc. | **Custom analytics metrics** |
-| **🚨 Alert Policies** | Error, CPU, Memory alerts | **Automated monitoring alerts** |
-| **📋 BigQuery Dataset** | `wiki_js_logs` | **Advanced log analytics** |
-
-## 📊 Built-in Monitoring & Analytics
-
-Your deployment includes **enterprise-grade monitoring** automatically configured:
-
-### **📈 Real-time Analytics Dashboard**
-- **👥 User Analytics**: Page views, sessions, unique visitors
-- **🖥️ Performance Metrics**: CPU, memory, response times
-- **🗄️ Database Monitoring**: PostgreSQL performance and connections
-- **🚨 Error Tracking**: Automated error detection and alerting
-- **📋 Log Analysis**: Comprehensive application log insights
-
-### **🔍 Advanced Features**
-- **BigQuery Integration**: Advanced analytics with SQL queries
-- **Custom Log Metrics**: Track page views, user sessions, errors
-- **Automated Alerts**: Email/SMS notifications for issues
-- **Security Monitoring**: Failed login attempts and access patterns
-- **Performance Optimization**: Slow query detection and analysis
-
-### **📊 Dashboard Access**
-After deployment, access your monitoring via the output links:
-- **Main Dashboard**: Custom Wiki.js analytics dashboard
-- **Logs Explorer**: Real-time log analysis
-- **BigQuery**: Advanced analytics with SQL queries
-- **Alert Policies**: Configure notifications and thresholds
-
-## 🛡️ Security Features
-
-### Network Security
-- **Private VPC**: Isolated network environment
-- **Private IP Only**: Cloud SQL accessible only via private network
-- **VPC Access Connector**: Secure Cloud Run to database communication
-- **No Public Database Access**: Complete isolation from public internet
-
-### Credential Security
-- **Secret Manager**: Encrypted credential storage
-- **Random Password Generation**: 32-character secure passwords
-- **Zero Hardcoding**: No credentials in code or state files
-- **Least Privilege IAM**: Minimal required permissions
-
-### Audit and Monitoring
-- **Cloud Logging**: All operations logged
-- **Secret Access Tracking**: Audit trail for credential access
-- **VPC Flow Logs**: Network traffic monitoring
-- **IAM Audit**: Permission changes tracked
-
-## 🔍 Validation and Testing
-
-### Syntax Validation
+### Infrastructure Validation
 ```bash
-# Validate Terraform syntax
+# Validate Terraform configuration
 terraform validate
 
-# Format code
-terraform fmt -check
+# Check resource planning
+terraform plan
 
-# Security scanning (if tfsec installed)
-tfsec .
+# Verify deployment
+terraform apply
 ```
 
-### Functional Testing
+### Application Testing
 ```bash
-# Test database connectivity
-gcloud sql connect wiki-postgres-instance --user=wikijs
-
-# Test Cloud Run service
+# Test Wiki.js accessibility
 curl -I $(terraform output -raw wiki_js_url)
 
-# Test secret access
-gcloud secrets versions access latest --secret=wiki-js-db-username
+# Verify database connectivity
+gcloud sql connect wiki-postgres-instance --user=wikijs
+
+# Check monitoring metrics
+gcloud monitoring metrics list --filter="metric.type:run.googleapis.com"
+```
+
+### Security Validation
+```bash
+# Verify no public IP on database
+gcloud sql instances describe wiki-postgres-instance --format="value(ipAddresses.ipAddress)"
+
+# Check secret accessibility
+gcloud secrets versions access latest --secret=wiki-js-db-password
+```
+
+## 📈 Capacity Planning
+
+### Expected Performance
+- **Users**: Supports 100+ concurrent users with default configuration
+- **Storage**: 10GB database storage (expandable to 30TB+)
+- **Traffic**: Handles 1000+ requests/minute with auto-scaling
+- **Availability**: 99.9% uptime SLA with Google Cloud Run
+
+### Scaling Recommendations
+- **Small Team** (10-50 users): Default configuration sufficient
+- **Medium Team** (50-200 users): Increase Cloud Run max instances to 50
+- **Large Team** (200+ users): Upgrade to Cloud SQL Standard tier
+- **Enterprise** (1000+ users): Consider multi-region deployment
+
+## 🗂️ File Structure
+
+```
+.
+├── main.tf                     # Complete Terraform configuration
+├── README.md                   # This documentation  
+├── .gitignore                  # Git ignore patterns
+└── terraform.tfvars.example   # Example configuration
 ```
 
 ## 🚨 Troubleshooting
 
-### Common Issues and Solutions
+### Common Deployment Issues
 
-**Issue: "Private service connection failed"**
+**Issue**: API not enabled
 ```bash
-# Solution: Check Service Networking API
-gcloud services enable servicenetworking.googleapis.com
-terraform apply
+# Solution: Enable required APIs
+gcloud services enable run.googleapis.com cloudsql.googleapis.com
 ```
 
-**Issue: "VPC Access Connector creation timeout"**
+**Issue**: Insufficient permissions  
 ```bash
-# Solution: Verify VPC and wait for completion
-gcloud compute networks vpc-access connectors list --region=us-central1
+# Solution: Grant required roles
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="user:your-email@domain.com" \
+  --role="roles/owner"
 ```
 
-**Issue: "Secret not found"**
-```bash
-# Solution: Wait for Secret Manager propagation
-sleep 60
-gcloud secrets list
-```
-
-**Issue: "Docker authentication failed"**
+**Issue**: Docker authentication failure
 ```bash
 # Solution: Re-authenticate Docker
 gcloud auth configure-docker us-central1-docker.pkg.dev
 ```
 
-### Debug Commands
-```bash
-# Check all created resources
-gcloud projects get-iam-policy $PROJECT_ID
-gcloud compute networks list
-gcloud sql instances list
-gcloud run services list
-gcloud secrets list
+**Issue**: wiki.js service unavilable
+```
+know issue - after initial setup, wait 5 minute and browse to link again
 
-# Check logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=wiki-js" --limit=50
 ```
 
-## 🧹 Cleanup
+### Monitoring Access
+- **Dashboards**: `https://console.cloud.google.com/monitoring/dashboards`
+- **Logs**: `https://console.cloud.google.com/logs`
+- **Alerts**: `https://console.cloud.google.com/monitoring/alerting`
 
-To destroy all created resources:
+## 📊 Cost Optimization
 
-```bash
-terraform destroy
-```
+### Estimated Monthly Costs (Light Usage)
+- **Cloud Run**: $2-5 (1M requests, auto-scaling)
+- **Cloud SQL**: $7-15 (db-f1-micro instance)
+- **Networking**: $1-3 (VPC, Load Balancer)
+- **Monitoring**: $0.50 (basic metrics and logs)
+- **Total**: ~$10-25/month
 
-**⚠️ Warning**: This permanently deletes all infrastructure and data.
+### Cost Reduction Strategies
+- Use Cloud Run minimum instances = 0 for development
+- Schedule database stop/start for non-production environments
+- Implement log retention policies to reduce storage costs
+- Monitor usage with billing alerts
 
-## 📁 Repository Structure
+## 🤝 Contributing
 
-```
-.
-├── main.tf              # Main Terraform configuration
-├── README.md           # This documentation
-├── .gitignore          # Git ignore patterns
-└── terraform.tfvars.example  # Example variables file
-```
+1. Fork this repository
+2. Create feature branch: `git checkout -b feature/enhancement`
+3. Commit changes: `git commit -am 'Add new feature'`
+4. Push to branch: `git push origin feature/enhancement`
+5. Submit Pull Request
 
-## 📝 Notes
+## 📄 License
 
-- **Deployment Time**: Expect 5-10 minutes for complete deployment
-- **Resource Cleanup**: Use `terraform destroy` to avoid ongoing costs
-- **Security**: All credentials are auto-generated and stored securely
-- **Scalability**: Cloud Run auto-scales based on demand
-- **Monitoring**: Access logs via Google Cloud Console
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Useful Links
+## 🔗 Additional Resources
 
-- [Google Cloud Console](https://console.cloud.google.com/)
-- [Cloud Run Dashboard](https://console.cloud.google.com/run)
-- [Cloud SQL Dashboard](https://console.cloud.google.com/sql)
-- [Secret Manager Dashboard](https://console.cloud.google.com/security/secret-manager)
-- [Terraform Documentation](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
+- **[Wiki.js Official Documentation](https://docs.js.wiki/)**
+- **[Wiki.js GitHub Repository](https://github.com/Requarks/wiki)**
+- **[Google Cloud Architecture Center](https://cloud.google.com/architecture)**
+- **[Terraform Google Cloud Provider](https://registry.terraform.io/providers/hashicorp/google/latest)**
 
